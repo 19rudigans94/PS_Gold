@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import config from '../config';
+import config from '../config/index.js';
 
 const algorithm = 'aes-256-cbc';
 const secretKey = config.encryptionKey || crypto.randomBytes(32);

@@ -1,8 +1,8 @@
 import GameKey from '../models/GameKey.js';
 import Game from '../models/Game.js';
 import { validationResult } from 'express-validator';
-import { sendEmail } from '../utils/email';
-import { encrypt, decrypt } from '../utils/encryption';
+import { sendEmail } from '../utils/email.js';
+import { encrypt, decrypt } from '../utils/encryption.js';
 
 // Получить все ключи (только для админов)
 export const getAllKeys = async (req, res) => {
