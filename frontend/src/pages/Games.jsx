@@ -46,7 +46,7 @@ function Games() {
 
     try {
       const existingItem = cartItems.find(item => 
-        item._id === game._id && item.type === 'game'
+        item.id === game.id && item.type === 'game'
       );
 
       console.log('Existing item in cart:', existingItem);
@@ -79,7 +79,7 @@ function Games() {
       <h2 className="text-2xl font-bold mb-6">Игры</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(6)].map((_, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+          <div key={`skeleton-${index}`} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
             <div className="w-full h-48 bg-gray-300" />
             <div className="p-4">
               <div className="h-6 bg-gray-300 rounded w-3/4 mb-2" />
@@ -112,7 +112,7 @@ function Games() {
           const price = game.price || 0;
           
           return (
-            <div key={game._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+            <div key={game.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
               <div className="relative aspect-w-16 aspect-h-9">
                 <img 
                   src={game.imageUrl ? `${import.meta.env.VITE_API_URL}/${game.imageUrl}` : '/placeholder-image.png'} 

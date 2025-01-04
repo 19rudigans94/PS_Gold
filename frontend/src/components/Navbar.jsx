@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { ShoppingCart, Gamepad2, Menu, User, MapPin, LogOut, Settings } from 'lucide-react';
+import { ShoppingCart, Gamepad2, Menu, User, LogOut, Settings } from 'lucide-react';
 import { logout } from '../store/slices/authSlice';
 import { useSettings } from '../hooks/useSettings';
 
@@ -23,16 +23,10 @@ function Navbar() {
 
   const navLinks = [
     { to: '/games', label: 'Игры' },
-    { to: '/consoles', label: 'Консоли' },
     { to: '/contact', label: 'Контакты' },
   ];
 
   const authLinks = user ? [
-    { 
-      to: '/tracking', 
-      icon: <MapPin className="h-6 w-6" />,
-      label: 'Отслеживание'
-    },
     { 
       to: '/profile', 
       icon: <User className="h-6 w-6" />,

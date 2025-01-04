@@ -19,7 +19,7 @@ function Footer() {
           <div>
             <h3 className="text-lg font-semibold mb-4">{siteName || 'Game Rental'}</h3>
             <p className="text-gray-400">
-              Ваш надежный партнер в мире игровых консолей и видеоигр
+              Ваш надежный партнер в мире видеоигр
             </p>
           </div>
 
@@ -30,11 +30,6 @@ function Footer() {
               <li>
                 <Link to="/games" className="text-gray-400 hover:text-white">
                   Игры
-                </Link>
-              </li>
-              <li>
-                <Link to="/consoles" className="text-gray-400 hover:text-white">
-                  Консоли
                 </Link>
               </li>
               <li>

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { usersAPI } from '../services/api';
 import { User, Mail, Phone, MapPin, Calendar, Package2, Camera, Save, Upload, X } from 'lucide-react';
 import Modal from '../components/modals/Modal';
 import { toast } from 'react-toastify';
 import UserGameKeys from '../components/UserGameKeys';
+import { updateUser } from '../store/slices/authSlice';
 
 function Profile() {
   const dispatch = useDispatch();
@@ -21,6 +22,19 @@ function Profile() {
     address: user?.address || '',
     avatar: user?.avatar || ''
   });
+
+  // Обновляем formData при изменении пользователя
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        avatar: user.avatar || ''
+      });
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -53,8 +67,8 @@ function Profile() {
       return;
     }
     
-    if (!user?._id) {
-      toast.error('Ошибка: ID пользователя не найден');
+    if (!user?.id) {
+      toast.error('Пользователь не найден');
       return;
     }
 
@@ -62,22 +76,24 @@ function Profile() {
       const formData = new FormData();
       formData.append('avatar', selectedFile);
 
-      const response = await usersAPI.uploadAvatar(user._id, formData);
+      const response = await usersAPI.uploadAvatar(user.id, formData);
       
       if (response && response.avatar) {
-        // Обновляем локальное состояние
-        setFormData(prev => ({ ...prev, avatar: response.avatar }));
+        const updatedUser = {
+          ...user,
+          avatar: response.avatar
+        };
         
         // Обновляем состояние в Redux
-        dispatch({ 
-          type: 'auth/updateUser', 
-          payload: { 
-            ...user, 
-            avatar: response.avatar 
-          } 
-        });
+        dispatch(updateUser(updatedUser));
         
-        toast.success('Фото профиля успешно обновлено');
+        // Обновляем локальное состояние
+        setFormData(prev => ({
+          ...prev,
+          avatar: response.avatar
+        }));
+        
+        toast.success(response.message || 'Фото профиля успешно обновлено');
         setShowPhotoModal(false);
         setSelectedFile(null);
         setPreviewUrl(null);
@@ -86,26 +102,30 @@ function Profile() {
       }
     } catch (error) {
       console.error('Ошибка загрузки аватара:', error);
-      toast.error(error.message || 'Ошибка при загрузке аватара');
+      const errorMessage = error.message || error.error || 'Ошибка при загрузке аватара';
+      toast.error(errorMessage);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (!user?._id) {
-        toast.error('Ошибка: ID пользователя не найден');
+      if (!user?.id) {
+        toast.error('Пользователь не найден');
         return;
       }
 
-      await usersAPI.updateUser(user._id, formData);
-      dispatch({ type: 'UPDATE_PROFILE', payload: formData });
+      await usersAPI.updateUser(user.id, formData);
+      dispatch(updateUser({ ...user, ...formData }));
       setIsEditing(false);
       toast.success('Профиль успешно обновлен!');
     } catch (error) {
       toast.error('Ошибка при обновлении профиля: ' + (error.response?.data?.message || error.message));
     }
   };
+
+  // Создаем константу для дефолтного аватара
+  const defaultAvatarSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSI5OCIgZmlsbD0iI2YwZjBmMCIgc3Ryb2tlPSIjZGRkIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSI4NSIgcj0iMzUiIGZpbGw9IiNkZGQiLz48cGF0aCBkPSJNMTAwIDE0MGMxOSAwIDM1LTggNDUtMjAgMC0yMi0yMC00MC00NS00MHMtNDUgMTgtNDUgNDBjMTAgMTIgMjYgMjAgNDUgMjB6IiBmaWxsPSIjZGRkIi8+PC9zdmc+';
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -115,10 +135,20 @@ function Profile() {
             <div className="relative">
               <img
                 src={formData.avatar 
-                  ? `${import.meta.env.VITE_API_URL.replace('/api', '')}/api/uploads/${formData.avatar.replace('uploads/', '')}`
-                  : '/default-avatar.png'
+                  ? `${import.meta.env.VITE_API_URL}/uploads/avatars/${formData.avatar}`
+                  : defaultAvatarSvg
                 }
-                alt="Profile"
+                onError={(e) => {
+                  console.error('Ошибка загрузки изображения:', {
+                    attemptedUrl: e.target.src,
+                    avatarPath: formData.avatar,
+                    apiUrl: import.meta.env.VITE_API_URL,
+                    formData: formData,
+                    user: user
+                  });
+                  e.target.src = defaultAvatarSvg;
+                }}
+                alt={`Профиль ${formData.name || 'пользователя'}`}
                 className="w-32 h-32 rounded-full border-4 border-white object-cover"
               />
               <button

@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Game {
+  id              Int           @id @default(autoincrement())
+  title           String
+  description     String?
+  price           Float
+  imageUrl        String?
+  genre           String
+  releaseYear     Int
+  ageRating       String
+  publisher       String
+  isDigital       Boolean       @default(false)
+  totalCopies     Int           @default(0)
+  availableCopies Int           @default(0)
+  inStock         Boolean       @default(true)
+  featured        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  keys            GameKey[]
+  orders          OrderGame[]
+}
+
+model GameKey {
+  id                  Int       @id @default(autoincrement())
+  game               Game      @relation(fields: [gameId], references: [id])
+  gameId             Int
+  password           String
+  status             String    @default("available") // available, reserved, sold
+  buyer              User?     @relation("BoughtKeys", fields: [buyerId], references: [id])
+  buyerId            Int?
+  reservedBy         User?     @relation("ReservedKeys", fields: [reservedById], references: [id])
+  reservedById       Int?
+  reservedAt         DateTime?
+  reservationExpires DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  password        String
+  name            String?
+  role            String    @default("user")
+  status          String    @default("active")
+  avatar          String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  boughtKeys      GameKey[] @relation("BoughtKeys")
+  reservedKeys    GameKey[] @relation("ReservedKeys")
+  orders          Order[]
+}
+
+model Settings {
+  id              Int       @id @default(autoincrement())
+  key             String    @unique
+  value           String
+  description     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  user            User        @relation(fields: [userId], references: [id])
+  userId          Int
+  status          String      @default("pending") // pending, paid, cancelled, completed
+  totalAmount     Float
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  payment         Payment?
+  games           OrderGame[]
+}
+
+model OrderGame {
+  id              Int       @id @default(autoincrement())
+  order           Order     @relation(fields: [orderId], references: [id])
+  orderId         Int
+  game            Game      @relation(fields: [gameId], references: [id])
+  gameId          Int
+  quantity        Int       @default(1)
+  price           Float
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Payment {
+  id              Int       @id @default(autoincrement())
+  order           Order     @relation(fields: [orderId], references: [id])
+  orderId         Int       @unique
+  amount          Float
+  status          String    @default("pending") // pending, completed, failed
+  paymentMethod   String?
+  transactionId   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}

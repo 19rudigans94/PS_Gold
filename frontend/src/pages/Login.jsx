@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Box, Button, TextField, InputAdornment, IconButton, Typography } from '@mui/material';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import AuthLayout from '../components/layouts/AuthLayout';
+import AuthLayout from "@/layouts/AuthLayout";
 import { loginUser } from '../store/slices/authSlice';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';

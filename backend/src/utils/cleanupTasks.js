@@ -1,4 +1,4 @@
-import GameKey from '../models/GameKey.js';
+import { clearExpiredReservations } from '../models/GameKey.js';
 
 // Очистка просроченных резерваций каждые 5 минут
 export const startCleanupTasks = () => {
@@ -6,8 +6,8 @@ export const startCleanupTasks = () => {
 
   setInterval(async () => {
     try {
-      const result = await GameKey.clearExpiredReservations();
-      console.log(`Очищено ${result.modifiedCount} просроченных резерваций`);
+      const result = await clearExpiredReservations();
+      console.log('Просроченные резервации очищены');
     } catch (error) {
       console.error('Ошибка при очистке просроченных резерваций:', error);
     }

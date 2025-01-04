@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import { createUser, getAllUsers, updateUser, deleteUser, comparePassword } from '../models/User.js';
 
 // Middleware для проверки аутентификации
 export const protect = async (req, res, next) => {
@@ -15,7 +15,7 @@ export const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select('-password');
+    req.user = await getAllUsers.findById(decoded.id).select('-password');
 
     if (!req.user) {
       return res.status(401).json({ message: 'Пользователь не найден' });

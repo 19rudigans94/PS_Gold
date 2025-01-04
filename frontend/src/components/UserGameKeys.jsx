@@ -47,7 +47,7 @@ function UserGameKeys() {
     );
   }
 
-  if (keys.length === 0) {
+  if (!Array.isArray(keys) || keys.length === 0) {
     return (
       <div className="text-center py-8">
         <p className="text-gray-500">У вас пока нет цифровых ключей</p>
@@ -65,7 +65,7 @@ function UserGameKeys() {
       <div className="border-t border-gray-200">
         <ul className="divide-y divide-gray-200">
           {keys.map((key) => (
-            <li key={key._id} className="px-4 py-4">
+            <li key={key.id} className="px-4 py-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-medium text-gray-900">
@@ -77,13 +77,13 @@ function UserGameKeys() {
                     </p>
                     <div className="flex items-center mt-1">
                       <p className="text-sm text-gray-600">
-                        Пароль: {showPasswords[key._id] ? key.password : '••••••••'}
+                        Пароль: {showPasswords[key.id] ? key.password : '••••••••'}
                       </p>
                       <button
-                        onClick={() => togglePasswordVisibility(key._id)}
+                        onClick={() => togglePasswordVisibility(key.id)}
                         className="ml-2 text-gray-400 hover:text-gray-600"
                       >
-                        {showPasswords[key._id] ? (
+                        {showPasswords[key.id] ? (
                           <EyeOff className="h-4 w-4" />
                         ) : (
                           <Eye className="h-4 w-4" />
@@ -93,7 +93,7 @@ function UserGameKeys() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleResendKey(key._id)}
+                  onClick={() => handleResendKey(key.id)}
                   className="flex items-center text-sm text-blue-600 hover:text-blue-800"
                 >
                   <RefreshCw className="h-4 w-4 mr-1" />

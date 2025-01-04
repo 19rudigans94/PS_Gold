@@ -29,8 +29,9 @@ const cartSlice = createSlice({
   initialState,
   reducers: {
     addItem: (state, action) => {
-      const existingItem = state.items.find(item => 
-        item._id === action.payload._id && item.type === action.payload.type
+      const existingItem = state.items.find(
+        item =>
+          item.id === action.payload.id && item.type === action.payload.type
       );
       
       if (existingItem) {
@@ -51,12 +52,12 @@ const cartSlice = createSlice({
       saveCartToLocalStorage(state.items);
     },
     removeItem: (state, action) => {
-      state.items = state.items.filter(item => item._id !== action.payload);
+      state.items = state.items.filter(item => item.id !== action.payload);
       saveCartToLocalStorage(state.items);
     },
     updateQuantity: (state, action) => {
-      const { _id, quantity } = action.payload;
-      const item = state.items.find(item => item._id === _id);
+      const { id, quantity } = action.payload;
+      const item = state.items.find(item => item.id === id);
       if (item) {
         item.quantity = quantity;
         if (item.type === 'console') {

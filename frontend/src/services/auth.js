@@ -1,14 +1,18 @@
 import { authAPI } from './api';
 import { toast } from 'react-toastify';
+import Cookies from 'js-cookie';
 
 class AuthService {
   async register(userData) {
     try {
       const response = await authAPI.register(userData);
-      toast.success('Registration successful!');
+      if (response.token) {
+        Cookies.set('authToken', response.token, { expires: 7 });
+      }
+      toast.success('Регистрация успешна!');
       return response;
     } catch (error) {
-      const message = error.response?.data?.message || 'Registration failed';
+      const message = error.response?.data?.message || 'Ошибка при регистрации';
       toast.error(message);
       throw error;
     }
@@ -17,10 +21,13 @@ class AuthService {
   async login(credentials) {
     try {
       const response = await authAPI.login(credentials);
-      toast.success('Welcome back!');
+      if (response.token) {
+        Cookies.set('authToken', response.token, { expires: 7 });
+      }
+      toast.success('Добро пожаловать!');
       return response;
     } catch (error) {
-      const message = error.response?.data?.message || 'Login failed';
+      const message = error.response?.data?.message || 'Ошибка при входе';
       toast.error(message);
       throw error;
     }
@@ -28,9 +35,13 @@ class AuthService {
 
   async checkAuth() {
     try {
+      const token = Cookies.get('authToken');
+      if (!token) {
+        throw new Error('Токен не найден');
+      }
       return await authAPI.checkAuth();
     } catch (error) {
-      // Don't show error toast for auth check
+      Cookies.remove('authToken');
       throw error;
     }
   }
@@ -38,20 +49,26 @@ class AuthService {
   async updateProfile(userId, userData) {
     try {
       const response = await authAPI.updateProfile(userId, userData);
-      toast.success('Profile updated successfully!');
+      toast.success('Профиль успешно обновлен!');
       return response;
     } catch (error) {
-      const message = error.response?.data?.message || 'Failed to update profile';
+      const message = error.response?.data?.message || 'Ошибка при обновлении профиля';
       toast.error(message);
       throw error;
     }
   }
 
-  async logout() {
-    // Clear any auth tokens or user data
-    localStorage.removeItem('user');
-    document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    toast.info('You have been logged out');
+  logout() {
+    Cookies.remove('authToken');
+    toast.info('Вы вышли из системы');
+  }
+
+  getAuthToken() {
+    return Cookies.get('authToken');
+  }
+
+  isAuthenticated() {
+    return !!this.getAuthToken();
   }
 }
 

@@ -1,12 +1,14 @@
 import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, Outlet } from "react-router-dom";
 import { useSelector } from 'react-redux';
+import Cookies from 'js-cookie';
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute() {
   const location = useLocation();
-  const { user, loading } = useSelector((state) => state.auth);
+  const { isAuthenticated, isLoading } = useSelector((state) => state.auth);
+  const token = Cookies.get('authToken');
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -14,11 +16,11 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  if (!user) {
+  if (!isAuthenticated || !token) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return children;
+  return <Outlet />;
 }
 
 export default ProtectedRoute;

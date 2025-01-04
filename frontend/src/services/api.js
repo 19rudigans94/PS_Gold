@@ -16,13 +16,14 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Если отправляем FormData, убираем Content-Type, чтобы axios установил правильный
+    // Если отправляем FormData, убираем Content-Type
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }
     return config;
   },
   (error) => {
+    console.error('Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -31,11 +32,34 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    if (error.response?.status === 401) {
+    console.error('Response error:', error);
+
+    // Если сервер недоступен
+    if (!error.response) {
+      return Promise.reject({
+        message: 'Сервер недоступен. Пожалуйста, попробуйте позже.'
+      });
+    }
+
+    // Если неавторизован
+    if (error.response.status === 401) {
       Cookies.remove('authToken');
       window.location.href = '/login';
+      return Promise.reject({
+        message: 'Необходима авторизация'
+      });
     }
-    return Promise.reject(error.response?.data || error.message);
+
+    // Если запрещен доступ
+    if (error.response.status === 403) {
+      return Promise.reject({
+        message: 'Доступ запрещен'
+      });
+    }
+
+    return Promise.reject(error.response?.data || {
+      message: 'Произошла ошибка при выполнении запроса'
+    });
   }
 );
 
@@ -54,43 +78,6 @@ const productsAPI = {
   createGame: (data) => api.post('/games', data),
   updateGame: (id, data) => api.put(`/games/${id}`, data),
   deleteGame: (id) => api.delete(`/games/${id}`),
-
-  // Consoles
-  getConsoles: () => api.get('/consoles'),
-  getConsole: (id) => api.get(`/consoles/${id}`),
-  createConsole: (data) => {
-    // Если data уже является FormData, отправляем как есть
-    if (data instanceof FormData) {
-      return api.post('/consoles', data);
-    }
-    // Иначе создаем новый FormData
-    const formData = new FormData();
-    for (let key in data) {
-      if (data[key] instanceof File) {
-        formData.append(key, data[key]);
-      } else if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, data[key].toString());
-      }
-    }
-    return api.post('/consoles', formData);
-  },
-  updateConsole: (id, data) => {
-    // Если data уже является FormData, отправляем как есть
-    if (data instanceof FormData) {
-      return api.put(`/consoles/${id}`, data);
-    }
-    // Иначе создаем новый FormData
-    const formData = new FormData();
-    for (let key in data) {
-      if (data[key] instanceof File) {
-        formData.append(key, data[key]);
-      } else if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, data[key].toString());
-      }
-    }
-    return api.put(`/consoles/${id}`, formData);
-  },
-  deleteConsole: (id) => api.delete(`/consoles/${id}`)
 };
 
 const ordersAPI = {
@@ -109,8 +96,17 @@ const usersAPI = {
   updateUser: (id, data) => api.put(`/users/${id}`, data),
   deleteUser: (id) => api.delete(`/users/${id}`),
   getUserStatistics: () => api.get('/users/statistics'),
-  uploadAvatar: (userId, formData) => {
-    return api.post(`/users/${userId}/avatar`, formData);
+  uploadAvatar: async (userId, formData) => {
+    try {
+      const response = await api.post(`/users/${userId}/avatar`, formData);
+      if (!response.avatar) {
+        throw new Error('Ответ сервера не содержит информации об аватаре');
+      }
+      return response;
+    } catch (error) {
+      console.error('API Error - uploadAvatar:', error);
+      throw error.response?.data || error;
+    }
   }
 };
 
@@ -139,6 +135,7 @@ const contactAPI = {
 };
 
 export {
+  api as default,
   authAPI,
   productsAPI,
   ordersAPI,
@@ -147,5 +144,3 @@ export {
   settingsAPI,
   contactAPI
 };
-
-export default api;

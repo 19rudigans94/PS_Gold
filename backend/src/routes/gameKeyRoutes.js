@@ -4,11 +4,10 @@ import {
   getAllKeys,
   getUserKeys,
   addKeys,
-  reserveKey,
+  reserveGameKey,
   confirmKeyPurchase,
   cancelKeyReservation,
-  resendKeyData,
-  deleteKey
+  resendKeyData
 } from '../controllers/gameKeyController.js';
 import { protect, admin, checkKeyOwnership } from '../middleware/authMiddleware.js';
 
@@ -18,20 +17,18 @@ const router = express.Router();
 const validateKeys = [
   body('gameId').notEmpty().withMessage('ID игры обязательно'),
   body('keys').isArray().withMessage('Ключи должны быть массивом'),
-  body('keys.*.login').notEmpty().withMessage('Логин обязателен'),
   body('keys.*.password').notEmpty().withMessage('Пароль обязателен')
 ];
 
-// Маршруты для админов
+// Маршруты для администраторов
 router.get('/all', protect, admin, getAllKeys);
 router.post('/add', protect, admin, validateKeys, addKeys);
-router.delete('/:keyId', protect, admin, deleteKey);
 
 // Маршруты для пользователей
 router.get('/my', protect, getUserKeys);
-router.post('/reserve', protect, reserveKey);
-router.post('/confirm', protect, checkKeyOwnership, confirmKeyPurchase);
-router.post('/cancel', protect, checkKeyOwnership, cancelKeyReservation);
-router.get('/resend/:keyId', protect, checkKeyOwnership, resendKeyData);
+router.post('/reserve', protect, reserveGameKey);
+router.post('/:keyId/confirm', protect, confirmKeyPurchase);
+router.post('/:keyId/cancel', protect, cancelKeyReservation);
+router.post('/:keyId/resend', protect, checkKeyOwnership, resendKeyData);
 
 export default router;

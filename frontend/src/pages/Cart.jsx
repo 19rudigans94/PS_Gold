@@ -92,12 +92,12 @@ function Cart() {
     }
   }, [success, error, dispatch]);
 
-  const handleRemoveItem = (_id) => {
-    dispatch(removeItem(_id));
+  const handleRemoveItem = (id) => {
+    dispatch(removeItem(id));
   };
 
-  const handleUpdateQuantity = (_id, newQuantity) => {
-    const item = items.find(item => item._id === _id);
+  const handleUpdateQuantity = (id, newQuantity) => {
+    const item = items.find(item => item.id === id);
     if (!item) return;
 
     // Проверяем максимальное количество в зависимости от типа товара
@@ -109,12 +109,12 @@ function Cart() {
     }
     
     if (newQuantity > maxQuantity) {
-      toast.warning(`Максимальное количество ${item.type === 'console' ? 'консоли' : 'игры'}: ${maxQuantity}`);
-      dispatch(updateQuantity({ _id, quantity: maxQuantity }));
+      toast.warning(`Максимальное доступное количество: ${maxQuantity}`);
+      dispatch(updateQuantity({ id, quantity: maxQuantity }));
       return;
     }
 
-    dispatch(updateQuantity({ _id, quantity: newQuantity }));
+    dispatch(updateQuantity({ id, quantity: newQuantity }));
   };
 
   const handleClearCart = () => {
@@ -176,17 +176,18 @@ function Cart() {
 
     try {
       // Подготовка данных заказа
+      const orderItems = items.map(item => ({
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        quantity: item.quantity || 1,
+        price: item.type === 'console' 
+          ? item.price * (item.rentalDays || 1)
+          : item.price,
+        ...(item.type === 'console' && { rentalDays: item.rentalDays || 1 })
+      }));
       const orderData = {
-        items: items.map(item => ({
-          _id: item._id,
-          type: item.type,
-          title: item.title,
-          quantity: item.quantity || 1,
-          price: item.type === 'console' 
-            ? item.price * (item.rentalDays || 1)
-            : item.price,
-          ...(item.type === 'console' && { rentalDays: item.rentalDays || 1 })
-        })),
+        items: orderItems,
         total: calculateTotal(),
         delivery: {
           name: formData.name.trim(),
@@ -210,7 +211,7 @@ function Cart() {
         toast.info('Оформление заказа...');
         const result = await dispatch(createOrder(orderData)).unwrap();
         
-        if (result && result._id) {
+        if (result && result.id) {
           toast.success('Заказ успешно оформлен!');
           dispatch(clearCart());
         } else {
@@ -269,7 +270,7 @@ function Cart() {
           <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
             {items.map((item) => (
               <Box 
-                key={`${item.type}-${item._id}`} 
+                key={`${item.type}-${item.id}`} 
                 sx={{ py: 2, '&:not(:last-child)': { borderBottom: 1, borderColor: 'divider' } }}
               >
                 <Grid container spacing={2} alignItems="center">
@@ -316,13 +317,13 @@ function Cart() {
                         type="number"
                         size="small"
                         value={item.quantity || 1}
-                        onChange={(e) => handleUpdateQuantity(item._id, parseInt(e.target.value))}
+                        onChange={(e) => handleUpdateQuantity(item.id, parseInt(e.target.value))}
                         inputProps={{ min: 1 }}
                         sx={{ width: 80 }}
                       />
                       <IconButton
                         color="error"
-                        onClick={() => handleRemoveItem(item._id)}
+                        onClick={() => handleRemoveItem(item.id)}
                         sx={{ ml: 1 }}
                       >
                         <Trash2 size={20} />

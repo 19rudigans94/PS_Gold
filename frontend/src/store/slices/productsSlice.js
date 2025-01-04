@@ -1,37 +1,27 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { productsAPI } from '../../services/api';
 
+// Асинхронные actions
 export const fetchGames = createAsyncThunk(
   'products/fetchGames',
-  async (_, { rejectWithValue }) => {
+  async () => {
     try {
       const data = await productsAPI.getGames();
       return data;
     } catch (error) {
-      return rejectWithValue(error.message);
+      throw error;
     }
   }
 );
 
-export const fetchConsoles = createAsyncThunk(
-  'products/fetchConsoles',
-  async (_, { rejectWithValue }) => {
-    try {
-      const data = await productsAPI.getConsoles();
-      return data;
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
+// Начальное состояние
 const initialState = {
   games: [],
-  consoles: [],
   loading: false,
-  error: null
+  error: null,
 };
 
+// Slice
 const productsSlice = createSlice({
   name: 'products',
   initialState,
@@ -49,22 +39,9 @@ const productsSlice = createSlice({
       })
       .addCase(fetchGames.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.error.message;
       })
-      // Consoles
-      .addCase(fetchConsoles.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchConsoles.fulfilled, (state, action) => {
-        state.loading = false;
-        state.consoles = action.payload;
-      })
-      .addCase(fetchConsoles.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      });
-  }
+  },
 });
 
 export default productsSlice.reducer;

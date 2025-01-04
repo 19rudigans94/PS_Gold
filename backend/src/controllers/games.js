@@ -1,11 +1,22 @@
 import { validationResult } from 'express-validator';
-import Game from '../models/Game.js';
+import { createGame, getAllGames, getGameById, updateGame, deleteGame } from '../models/Game.js';
 import fs from 'fs';
 import path from 'path';
 
+// Создаем константу для директории загрузок
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+const GAMES_IMAGES_DIR = path.join(UPLOADS_DIR, 'games');
+
+// Убедимся, что директории существуют
+[UPLOADS_DIR, GAMES_IMAGES_DIR].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
 export const getGames = async (req, res) => {
   try {
-    const games = await Game.find();
+    const games = await getAllGames();
     res.json(games);
   } catch (error) {
     console.error('Ошибка при получении игр:', error);
@@ -15,7 +26,7 @@ export const getGames = async (req, res) => {
 
 export const getGame = async (req, res) => {
   try {
-    const game = await Game.findById(req.params.id);
+    const game = await getGameById(req.params.id);
     if (!game) {
       return res.status(404).json({ message: 'Игра не найдена' });
     }
@@ -26,7 +37,9 @@ export const getGame = async (req, res) => {
   }
 };
 
-export const createGame = async (req, res) => {
+export const createGameController = async (req, res) => {
+  let imagePath = null;
+  
   try {
     console.log('Получены данные:', {
       body: req.body,
@@ -36,137 +49,133 @@ export const createGame = async (req, res) => {
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('Ошибки валидации:', errors.array());
-      // Если файл был загружен, удаляем его
       if (req.file) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) console.error('Ошибка при удалении файла:', err);
-        });
+        fs.unlinkSync(req.file.path);
       }
-      return res.status(400).json({ message: errors.array()[0].msg });
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    // Проверяем и создаем директорию uploads, если она не существует
-    const uploadsDir = 'uploads';
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
+    // Преобразуем строковые значения в соответствующие типы
     const gameData = {
       title: req.body.title,
       description: req.body.description,
-      console: req.body.console,
-      price: req.body.price,
+      price: parseFloat(req.body.price),
       genre: req.body.genre,
-      releaseYear: req.body.releaseYear,
+      releaseYear: parseInt(req.body.releaseYear),
       ageRating: req.body.ageRating,
       publisher: req.body.publisher,
+      isDigital: req.body.isDigital === 'true',
+      totalCopies: req.body.isDigital === 'true' ? parseInt(req.body.totalCopies) : 0,
+      availableCopies: req.body.isDigital === 'true' ? parseInt(req.body.totalCopies) : 0,
       inStock: req.body.inStock === 'true',
-      featured: req.body.featured === 'true',
-      imageUrl: req.file ? req.file.path : undefined
+      featured: req.body.featured === 'true'
     };
+
+    // Если есть файл изображения, перемещаем его в правильную директорию
+    if (req.file) {
+      const oldPath = path.resolve(req.file.path);
+      const newPath = path.join(GAMES_IMAGES_DIR, req.file.filename);
+      imagePath = oldPath;
+      
+      // Перемещаем файл из uploads/avatars в uploads/games
+      fs.renameSync(oldPath, newPath);
+      
+      // Обновляем путь к изображению
+      gameData.imageUrl = path.join('games', req.file.filename);
+    }
 
     console.log('Данные для создания игры:', gameData);
 
-    const game = new Game(gameData);
-    console.log('Созданный объект игры:', game);
+    const game = await createGame(gameData);
+    console.log('Созданная игра:', game);
 
-    const savedGame = await game.save();
-    console.log('Сохраненная игра:', savedGame);
-
-    res.status(201).json(savedGame);
+    res.status(201).json(game);
   } catch (error) {
     console.error('Ошибка при создании игры:', error);
-    // Если произошла ошибка, удаляем загруженный файл
-    if (req.file) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error('Ошибка при удалении файла:', err);
-      });
+    // Если произошла ошибка и файл существует, удаляем его
+    if (imagePath && fs.existsSync(imagePath)) {
+      fs.unlinkSync(imagePath);
     }
-    res.status(500).json({ message: 'Ошибка при создании игры: ' + error.message });
+    res.status(500).json({ message: 'Ошибка при создании игры' });
   }
 };
 
-export const updateGame = async (req, res) => {
+export const updateGameController = async (req, res) => {
   try {
-    const game = await Game.findById(req.params.id);
-    if (!game) {
-      // Если файл был загружен, удаляем его
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
       if (req.file) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) console.error('Ошибка при удалении файла:', err);
-        });
+        fs.unlinkSync(req.file.path);
       }
-      return res.status(404).json({ message: 'Игра не найдена' });
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    // Если загружается новое изображение
-    if (req.file) {
-      // Удаляем старое изображение
-      if (game.imageUrl) {
-        const oldImagePath = path.join(process.cwd(), game.imageUrl);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlink(oldImagePath, (err) => {
-            if (err) console.error('Ошибка при удалении старого изображения:', err);
-          });
-        }
+    // Получаем текущую игру
+    const existingGame = await getGameById(req.params.id);
+    if (!existingGame) {
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
       }
+      return res.status(404).json({ message: 'Игра не найдена' });
     }
 
     const gameData = {
       title: req.body.title,
       description: req.body.description,
-      console: req.body.console,
       price: req.body.price,
       genre: req.body.genre,
       releaseYear: req.body.releaseYear,
       ageRating: req.body.ageRating,
       publisher: req.body.publisher,
+      isDigital: req.body.isDigital,
+      totalCopies: req.body.totalCopies,
       inStock: req.body.inStock === 'true',
-      featured: req.body.featured === 'true',
-      imageUrl: req.file ? req.file.path : game.imageUrl
+      featured: req.body.featured === 'true'
     };
 
-    const updatedGame = await Game.findByIdAndUpdate(
-      req.params.id,
-      { $set: gameData },
-      { new: true }
-    );
+    // Если есть новый файл изображения
+    if (req.file) {
+      // Удаляем старое изображение, если оно есть
+      if (existingGame.imageUrl) {
+        const oldImagePath = path.join(UPLOADS_DIR, existingGame.imageUrl);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+      const relativePath = path.relative(UPLOADS_DIR, req.file.path);
+      gameData.imageUrl = relativePath;
+    }
 
+    const updatedGame = await updateGame(req.params.id, gameData);
     res.json(updatedGame);
   } catch (error) {
     console.error('Ошибка при обновлении игры:', error);
-    // Если произошла ошибка, удаляем загруженный файл
     if (req.file) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error('Ошибка при удалении файла:', err);
-      });
+      fs.unlinkSync(req.file.path);
     }
-    res.status(500).json({ message: 'Ошибка при обновлении игры: ' + error.message });
+    res.status(500).json({ message: 'Ошибка при обновлении игры' });
   }
 };
 
-export const deleteGame = async (req, res) => {
+export const deleteGameController = async (req, res) => {
   try {
-    const game = await Game.findById(req.params.id);
+    const game = await getGameById(req.params.id);
     if (!game) {
       return res.status(404).json({ message: 'Игра не найдена' });
     }
 
-    // Удаляем изображение
+    // Удаляем изображение, если оно есть
     if (game.imageUrl) {
-      const imagePath = path.join(process.cwd(), game.imageUrl);
+      const imagePath = path.join(UPLOADS_DIR, game.imageUrl);
       if (fs.existsSync(imagePath)) {
-        fs.unlink(imagePath, (err) => {
-          if (err) console.error('Ошибка при удалении изображения:', err);
-        });
+        fs.unlinkSync(imagePath);
       }
     }
 
-    await Game.findByIdAndDelete(req.params.id);
+    await deleteGame(req.params.id);
     res.json({ message: 'Игра успешно удалена' });
   } catch (error) {
     console.error('Ошибка при удалении игры:', error);
-    res.status(500).json({ message: 'Ошибка при удалении игры: ' + error.message });
+    res.status(500).json({ message: 'Ошибка при удалении игры' });
   }
 };

@@ -6,7 +6,7 @@ import { ordersAPI } from '../../../services/api';
 function OrderDetails({ order, onClose, onStatusUpdate }) {
   const handleStatusChange = async (newStatus) => {
     try {
-      await ordersAPI.updateOrder(order._id || order.id, { status: newStatus });
+      await ordersAPI.updateOrder(order.id, { status: newStatus });
       toast.success('Статус заказа успешно обновлен');
       onStatusUpdate && onStatusUpdate(newStatus);
     } catch (err) {

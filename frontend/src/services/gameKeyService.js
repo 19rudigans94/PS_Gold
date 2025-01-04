@@ -1,49 +1,41 @@
-import axios from 'axios';
+import api from './api';
 
 // Получить все ключи (для админов)
 export const getAllGameKeys = async () => {
-  const response = await axios.get('/api/game-keys/all');
-  return response.data;
+  return await api.get('/game-keys/all');
 };
 
 // Получить ключи пользователя
 export const getUserGameKeys = async () => {
-  const response = await axios.get('/api/game-keys/my');
-  return response.data;
+  return await api.get('/game-keys/my');
 };
 
 // Добавить новые ключи
 export const addGameKeys = async (gameId, keys) => {
-  const response = await axios.post('/api/game-keys/add', { gameId, keys });
-  return response.data;
+  return await api.post('/game-keys/add', { gameId, keys });
 };
 
 // Зарезервировать ключ
 export const reserveGameKey = async (gameId) => {
-  const response = await axios.post('/api/game-keys/reserve', { gameId });
-  return response.data;
+  return await api.post('/game-keys/reserve', { gameId });
 };
 
 // Подтвердить покупку ключа
 export const confirmKeyPurchase = async (keyId) => {
-  const response = await axios.post('/api/game-keys/confirm', { keyId });
-  return response.data;
+  return await api.post('/game-keys/confirm', { keyId });
 };
 
 // Отменить резервацию ключа
 export const cancelKeyReservation = async (keyId) => {
-  const response = await axios.post('/api/game-keys/cancel', { keyId });
-  return response.data;
+  return await api.post('/game-keys/cancel', { keyId });
 };
 
 // Повторно получить данные ключа
 export const resendKeyData = async (keyId) => {
-  const response = await axios.get(`/api/game-keys/resend/${keyId}`);
-  return response.data;
+  return await api.get(`/game-keys/resend/${keyId}`);
 };
 
 // Удалить ключ (для админов)
 export const deleteGameKey = async (keyId) => {
-  const response = await axios.delete(`/api/game-keys/${keyId}`);
-  return response.data;
+  return await api.delete(`/game-keys/${keyId}`);
 };

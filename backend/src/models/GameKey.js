@@ -1,147 +1,189 @@
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { prisma } from '../index.js';
 
-const gameKeySchema = new mongoose.Schema({
-  game: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Game',
-    required: true
-  },
-  login: {
-    type: String,
-    required: true
-  },
-  password: {
-    type: String,
-    required: true
-  },
-  is_sold: {
-    type: Boolean,
-    default: false
-  },
-  buyer: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  reservedAt: {
-    type: Date,
-    default: null
-  },
-  reservedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  reservationExpires: {
-    type: Date,
-    default: null
-  }
-}, {
-  timestamps: true
-});
+// Функция для добавления нового ключа
+export const addGameKey = async (data) => {
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(data.password, salt);
 
-// Хешируем пароль перед сохранением
-gameKeySchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Статический метод для подсчета доступных ключей
-gameKeySchema.statics.countAvailableKeys = async function(gameId) {
-  return await this.countDocuments({
-    game: gameId,
-    is_sold: false,
-    reservedAt: null
+  return await prisma.gameKey.create({
+    data: {
+      ...data,
+      password: hashedPassword,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    include: {
+      game: true,
+      buyer: true
+    }
   });
 };
 
-// Метод для резервирования ключа
-gameKeySchema.statics.reserveKey = async function(gameId, userId) {
-  const reservationDuration = 15 * 60 * 1000; // 15 минут
+// Функция для подсчета доступных ключей
+export const countAvailableKeys = async (gameId) => {
+  return await prisma.gameKey.count({
+    where: {
+      gameId: parseInt(gameId),
+      status: 'available'
+    }
+  });
+};
+
+// Функция для получения всех ключей
+export const getAllGameKeys = async () => {
+  return await prisma.gameKey.findMany({
+    include: {
+      game: true,
+      buyer: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    }
+  });
+};
+
+// Функция для получения ключей пользователя
+export const getGameKeysByUser = async (userId) => {
+  return await prisma.gameKey.findMany({
+    where: {
+      buyerId: parseInt(userId)
+    },
+    include: {
+      game: true
+    }
+  });
+};
+
+// Функция для получения ключа по ID
+export const getGameKeyById = async (id) => {
+  return await prisma.gameKey.findUnique({
+    where: {
+      id: parseInt(id)
+    },
+    include: {
+      game: true,
+      buyer: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    }
+  });
+};
+
+// Функция для резервирования ключа
+export const reserveKey = async (gameId, userId) => {
+  const key = await prisma.gameKey.findFirst({
+    where: {
+      gameId: parseInt(gameId),
+      status: 'available'
+    }
+  });
+
+  if (!key) {
+    throw new Error('Нет доступных ключей для этой игры');
+  }
+
+  const reservationExpiry = new Date();
+  reservationExpiry.setMinutes(reservationExpiry.getMinutes() + 15);
+
+  return await prisma.gameKey.update({
+    where: { id: key.id },
+    data: {
+      status: 'reserved',
+      buyerId: parseInt(userId),
+      reservationExpiry
+    },
+    include: {
+      game: true,
+      buyer: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    }
+  });
+};
+
+// Функция для подтверждения покупки ключа
+export const confirmPurchase = async (keyId, userId) => {
+  const key = await prisma.gameKey.findUnique({
+    where: { id: parseInt(keyId) }
+  });
+
+  if (!key) {
+    throw new Error('Ключ не найден');
+  }
+
+  if (key.status !== 'reserved' || key.buyerId !== parseInt(userId)) {
+    throw new Error('Ключ не зарезервирован за вами');
+  }
+
+  return await prisma.gameKey.update({
+    where: { id: parseInt(keyId) },
+    data: {
+      status: 'sold',
+      reservationExpiry: null
+    },
+    include: {
+      game: true,
+      buyer: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    }
+  });
+};
+
+// Функция для отмены резервации
+export const cancelReservation = async (keyId) => {
+  return await prisma.gameKey.update({
+    where: { id: parseInt(keyId) },
+    data: {
+      status: 'available',
+      buyerId: null,
+      reservationExpiry: null
+    },
+    include: {
+      game: true
+    }
+  });
+};
+
+// Функция для очистки просроченных резерваций
+export const clearExpiredReservations = async () => {
+  const now = new Date();
   
-  const key = await this.findOneAndUpdate(
-    {
-      game: gameId,
-      is_sold: false,
-      reservedAt: null
+  return await prisma.gameKey.updateMany({
+    where: {
+      status: 'reserved',
+      reservationExpires: {
+        lt: now
+      }
     },
-    {
-      reservedBy: userId,
-      reservedAt: new Date(),
-      reservationExpires: new Date(Date.now() + reservationDuration)
-    },
-    { new: true }
-  );
-
-  if (!key) {
-    throw new Error('Нет доступных ключей');
-  }
-
-  return key;
-};
-
-// Метод для подтверждения покупки ключа
-gameKeySchema.statics.confirmPurchase = async function(keyId, userId) {
-  const key = await this.findOneAndUpdate(
-    {
-      _id: keyId,
-      reservedBy: userId,
-      is_sold: false,
-      reservationExpires: { $gt: new Date() }
-    },
-    {
-      is_sold: true,
-      buyer: userId,
-      reservedAt: null,
-      reservedBy: null,
-      reservationExpires: null
-    },
-    { new: true }
-  );
-
-  if (!key) {
-    throw new Error('Ключ не найден или резервация истекла');
-  }
-
-  return key;
-};
-
-// Метод для отмены резервации
-gameKeySchema.statics.cancelReservation = async function(keyId) {
-  return await this.findOneAndUpdate(
-    { _id: keyId },
-    {
-      reservedBy: null,
-      reservedAt: null,
-      reservationExpires: null
-    },
-    { new: true }
-  );
-};
-
-// Метод для очистки просроченных резерваций
-gameKeySchema.statics.clearExpiredReservations = async function() {
-  return await this.updateMany(
-    {
-      reservationExpires: { $lt: new Date() },
-      is_sold: false
-    },
-    {
-      reservedBy: null,
+    data: {
+      status: 'available',
+      reservedById: null,
       reservedAt: null,
       reservationExpires: null
     }
-  );
+  });
 };
 
-const GameKey = mongoose.model('GameKey', gameKeySchema);
-
-export default GameKey;
+// Функция для удаления ключа
+export const deleteGameKey = async (keyId) => {
+  return await prisma.gameKey.delete({
+    where: { id: parseInt(keyId) }
+  });
+};

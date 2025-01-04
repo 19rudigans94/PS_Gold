@@ -54,7 +54,7 @@ function GamesManagement() {
     if (!itemToDelete) return;
 
     try {
-      await productsAPI.deleteGame(itemToDelete._id);
+      await productsAPI.deleteGame(itemToDelete.id);
       await fetchGames();
       toast.success('Игра успешно удалена');
     } catch (error) {
@@ -69,7 +69,7 @@ function GamesManagement() {
   const handleSubmit = async (formData) => {
     try {
       if (editingItem) {
-        await productsAPI.updateGame(editingItem._id, formData);
+        await productsAPI.updateGame(editingItem.id, formData);
         toast.success('Игра успешно обновлена');
       } else {
         await productsAPI.createGame(formData);
@@ -114,7 +114,7 @@ function GamesManagement() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredGames.map((game) => (
             <div
-              key={game._id}
+              key={game.id}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
             >
               <div className="aspect-w-16 aspect-h-9">

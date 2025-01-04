@@ -17,8 +17,14 @@ const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: false,
+      serializableCheck: {
+        // Игнорируем определенные action types
+        ignoredActions: ['auth/checkStatus/fulfilled', 'auth/loginUser/fulfilled', 'auth/registerUser/fulfilled'],
+        // Игнорируем определенные пути в state
+        ignoredPaths: ['auth.user'],
+      },
     }),
+  devTools: process.env.NODE_ENV !== 'production',
 });
 
 export default store;

@@ -19,9 +19,6 @@ function Home() {
               <Link to="/games" className="btn bg-white text-blue-600 hover:bg-gray-100">
                 Смотреть игры
               </Link>
-              <Link to="/consoles" className="btn bg-blue-500 text-white hover:bg-blue-400">
-                Арендовать консоль
-              </Link>
             </div>
           </div>
         </div>

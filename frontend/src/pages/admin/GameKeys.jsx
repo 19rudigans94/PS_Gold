@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import {
   Table,
   TableBody,
@@ -25,6 +24,8 @@ import {
 } from '@mui/material';
 import { Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
+import api, { productsAPI } from '@/services/api';
+import { getAllGameKeys, addGameKeys, deleteGameKey } from '@/services/gameKeyService';
 
 function GameKeys() {
   const [games, setGames] = useState([]);
@@ -41,12 +42,12 @@ function GameKeys() {
 
   const fetchData = async () => {
     try {
-      const [gamesResponse, keysResponse] = await Promise.all([
-        axios.get('/api/games'),
-        axios.get('/api/game-keys/all')
+      const [gamesData, keysData] = await Promise.all([
+        productsAPI.getGames(),
+        getAllGameKeys()
       ]);
-      setGames(gamesResponse.data);
-      setGameKeys(keysResponse.data);
+      setGames(gamesData);
+      setGameKeys(keysData);
     } catch (error) {
       toast.error('Ошибка при загрузке данных');
       console.error(error);
@@ -60,17 +61,12 @@ function GameKeys() {
   };
 
   const handleRemoveKey = (index) => {
-    const updatedKeys = newKeys.filter((_, i) => i !== index);
-    setNewKeys(updatedKeys);
+    setNewKeys(newKeys.filter((_, i) => i !== index));
   };
 
   const handleKeyChange = (index, field, value) => {
-    const updatedKeys = newKeys.map((key, i) => {
-      if (i === index) {
-        return { ...key, [field]: value };
-      }
-      return key;
-    });
+    const updatedKeys = [...newKeys];
+    updatedKeys[index][field] = value;
     setNewKeys(updatedKeys);
   };
 
@@ -81,16 +77,7 @@ function GameKeys() {
         return;
       }
 
-      if (newKeys.some(key => !key.login || !key.password)) {
-        toast.error('Заполните все поля');
-        return;
-      }
-
-      await axios.post('/api/game-keys/add', {
-        gameId: selectedGame,
-        keys: newKeys
-      });
-
+      await addGameKeys(selectedGame, newKeys);
       toast.success('Ключи успешно добавлены');
       setOpenDialog(false);
       setSelectedGame('');
@@ -98,6 +85,21 @@ function GameKeys() {
       fetchData();
     } catch (error) {
       toast.error('Ошибка при добавлении ключей');
+      console.error(error);
+    }
+  };
+
+  const handleDeleteKey = async (keyId) => {
+    if (!window.confirm('Вы уверены, что хотите удалить этот ключ?')) {
+      return;
+    }
+
+    try {
+      await deleteGameKey(keyId);
+      toast.success('Ключ успешно удален');
+      fetchData();
+    } catch (error) {
+      toast.error('Ошибка при удалении ключа');
       console.error(error);
     }
   };
@@ -110,75 +112,78 @@ function GameKeys() {
   };
 
   if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-        <Typography>Загрузка...</Typography>
-      </Box>
-    );
+    return <div>Загрузка...</div>;
   }
 
   return (
-    <div>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5">Управление цифровыми ключами</Typography>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <Typography variant="h4" component="h1">
+          Цифровые ключи
+        </Typography>
         <Button
           variant="contained"
-          startIcon={<Plus className="h-4 w-4" />}
+          color="primary"
+          startIcon={<Plus />}
           onClick={() => setOpenDialog(true)}
         >
           Добавить ключи
         </Button>
-      </Box>
+      </div>
 
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>ID</TableCell>
               <TableCell>Игра</TableCell>
               <TableCell>Логин</TableCell>
               <TableCell>Пароль</TableCell>
               <TableCell>Статус</TableCell>
-              <TableCell>Покупатель</TableCell>
               <TableCell>Действия</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {gameKeys.map((key) => (
-              <TableRow key={key._id}>
-                <TableCell>{key.game.title}</TableCell>
+              <TableRow key={key.id}>
+                <TableCell>{key.id}</TableCell>
+                <TableCell>{games.find(g => g.id === key.gameId)?.title || 'Неизвестная игра'}</TableCell>
                 <TableCell>{key.login}</TableCell>
                 <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {showPasswords[key._id] ? key.password : '••••••••'}
+                  <div className="flex items-center">
+                    <span className="font-mono">
+                      {showPasswords[key.id] ? key.password : '••••••••'}
+                    </span>
                     <IconButton
                       size="small"
-                      onClick={() => togglePasswordVisibility(key._id)}
+                      onClick={() => togglePasswordVisibility(key.id)}
                     >
-                      {showPasswords[key._id] ? 
-                        <EyeOff className="h-4 w-4" /> : 
-                        <Eye className="h-4 w-4" />
-                      }
+                      {showPasswords[key.id] ? <EyeOff size={16} /> : <Eye size={16} />}
                     </IconButton>
-                  </Box>
+                  </div>
                 </TableCell>
                 <TableCell>
-                  {key.is_sold ? (
-                    <Alert severity="error" sx={{ py: 0 }}>Продан</Alert>
-                  ) : (
-                    <Alert severity="success" sx={{ py: 0 }}>Доступен</Alert>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {key.buyer ? key.buyer.email : '-'}
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    key.status === 'available'
+                      ? 'bg-green-100 text-green-800'
+                      : key.status === 'reserved'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {key.status === 'available'
+                      ? 'Доступен'
+                      : key.status === 'reserved'
+                      ? 'Зарезервирован'
+                      : 'Продан'}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <IconButton
                     color="error"
-                    onClick={() => {
-                      // Добавить функционал удаления
-                    }}
+                    size="small"
+                    onClick={() => handleDeleteKey(key.id)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 size={16} />
                   </IconButton>
                 </TableCell>
               </TableRow>
@@ -187,58 +192,71 @@ function GameKeys() {
         </Table>
       </TableContainer>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Добавить цифровые ключи</DialogTitle>
         <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
-            <InputLabel>Игра</InputLabel>
-            <Select
-              value={selectedGame}
-              onChange={(e) => setSelectedGame(e.target.value)}
-              label="Игра"
+          <Box sx={{ mt: 2 }}>
+            <FormControl fullWidth sx={{ mb: 3 }}>
+              <InputLabel>Игра</InputLabel>
+              <Select
+                value={selectedGame}
+                onChange={(e) => setSelectedGame(e.target.value)}
+                label="Игра"
+              >
+                {games
+                  .filter(game => game.isDigital)
+                  .map((game) => (
+                    <MenuItem key={game.id} value={game.id}>
+                      {game.title}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+
+            {newKeys.map((key, index) => (
+              <Box key={index} sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Ключ {index + 1}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                  <TextField
+                    label="Логин"
+                    value={key.login}
+                    onChange={(e) => handleKeyChange(index, 'login', e.target.value)}
+                    fullWidth
+                  />
+                  <TextField
+                    label="Пароль"
+                    value={key.password}
+                    onChange={(e) => handleKeyChange(index, 'password', e.target.value)}
+                    fullWidth
+                  />
+                  {index > 0 && (
+                    <IconButton
+                      color="error"
+                      onClick={() => handleRemoveKey(index)}
+                    >
+                      <Trash2 size={20} />
+                    </IconButton>
+                  )}
+                </Box>
+              </Box>
+            ))}
+
+            <Button
+              startIcon={<Plus />}
+              onClick={handleAddKey}
+              variant="outlined"
+              fullWidth
+              sx={{ mt: 2 }}
             >
-              {games.filter(game => game.isDigital).map((game) => (
-                <MenuItem key={game._id} value={game._id}>
-                  {game.title}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {newKeys.map((key, index) => (
-            <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2 }}>
-              <TextField
-                label="Логин"
-                value={key.login}
-                onChange={(e) => handleKeyChange(index, 'login', e.target.value)}
-                fullWidth
-              />
-              <TextField
-                label="Пароль"
-                value={key.password}
-                onChange={(e) => handleKeyChange(index, 'password', e.target.value)}
-                fullWidth
-                type="password"
-              />
-              {index > 0 && (
-                <IconButton color="error" onClick={() => handleRemoveKey(index)}>
-                  <Trash2 className="h-4 w-4" />
-                </IconButton>
-              )}
-            </Box>
-          ))}
-
-          <Button
-            startIcon={<Plus className="h-4 w-4" />}
-            onClick={handleAddKey}
-            sx={{ mt: 1 }}
-          >
-            Добавить еще ключ
-          </Button>
+              Добавить еще ключ
+            </Button>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Отмена</Button>
-          <Button onClick={handleSubmit} variant="contained">
+          <Button onClick={handleSubmit} variant="contained" color="primary">
             Сохранить
           </Button>
         </DialogActions>

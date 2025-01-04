@@ -13,6 +13,9 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "node-cache": "^5.1.2"
+    "@prisma/client": "^6.1.0",
+    "node-cache": "^5.1.2",
+    "prisma": "^6.1.0",
+    "sqlite3": "^5.1.7"
   }
 }

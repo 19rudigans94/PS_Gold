@@ -1,33 +1,45 @@
-import mongoose from 'mongoose';
+import { prisma } from '../index.js';
 
-const consoleSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true
-  },
-  description: String,
-  pricePerDay: {
-    type: Number,
-    required: true
-  },
-  imageUrl: String,
-  condition: {
-    type: String,
-    enum: ['new', 'excellent', 'good', 'fair'],
-    default: 'new'
-  },
-  serialNumber: String,
-  accessories: [String],
-  inStock: {
-    type: Boolean,
-    default: true
-  },
-  featured: {
-    type: Boolean,
-    default: false
-  }
-}, {
-  timestamps: true
-});
+// Функция для создания новой консоли
+export const createConsole = async (consoleData) => {
+  return await prisma.console.create({
+    data: consoleData
+  });
+};
 
-export default mongoose.model('Console', consoleSchema);
+// Функция для получения всех консолей
+export const getAllConsoles = async () => {
+  return await prisma.console.findMany({
+    include: {
+      games: true
+    }
+  });
+};
+
+// Функция для получения консоли по ID
+export const getConsoleById = async (id) => {
+  return await prisma.console.findUnique({
+    where: { id: parseInt(id) },
+    include: {
+      games: true
+    }
+  });
+};
+
+// Функция для обновления консоли
+export const updateConsole = async (consoleId, consoleData) => {
+  return await prisma.console.update({
+    where: { id: parseInt(consoleId) },
+    data: consoleData,
+    include: {
+      games: true
+    }
+  });
+};
+
+// Функция для удаления консоли
+export const deleteConsole = async (consoleId) => {
+  return await prisma.console.delete({
+    where: { id: parseInt(consoleId) }
+  });
+};

@@ -1,65 +1,88 @@
-import mongoose from 'mongoose';
+import { prisma } from '../index.js';
 
-const orderSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  items: [{
-    type: {
-      type: String,
-      enum: ['game', 'console'],
-      required: true
-    },
-    item: {
-      type: mongoose.Schema.Types.ObjectId,
-      refPath: 'items.type',
-      required: true
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1
-    },
-    price: {
-      type: Number,
-      required: true
-    },
-    rentalDays: Number
-  }],
-  total: {
-    type: Number,
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'processing', 'completed', 'cancelled'],
-    default: 'pending'
-  },
-  delivery: {
-    name: String,
-    phone: String,
-    email: String,
-    address: String
-  },
-  paymentMethod: {
-    type: String,
-    enum: ['cash', 'kaspi'],
-    required: true
-  },
-  paymentStatus: {
-    type: String,
-    enum: ['pending', 'paid', 'failed'],
-    default: 'pending'
-  },
-  paymentDetails: {
-    kaspiPaymentId: String,
-    paymentUrl: String,
-    transactionId: String
-  }
-}, {
-  timestamps: true
-});
+// Функция для создания нового заказа
+export const createOrder = async (orderData) => {
+  return await prisma.order.create({
+    data: orderData,
+    include: {
+      user: true,
+      games: {
+        include: {
+          game: true
+        }
+      },
+      payment: true
+    }
+  });
+};
 
-export default mongoose.model('Order', orderSchema);
+// Функция для получения всех заказов
+export const getAllOrders = async () => {
+  return await prisma.order.findMany({
+    include: {
+      user: true,
+      games: {
+        include: {
+          game: true
+        }
+      },
+      payment: true
+    }
+  });
+};
+
+// Функция для получения заказа по ID
+export const getOrderById = async (id) => {
+  return await prisma.order.findUnique({
+    where: { id: parseInt(id) },
+    include: {
+      user: true,
+      games: {
+        include: {
+          game: true
+        }
+      },
+      payment: true
+    }
+  });
+};
+
+// Функция для получения заказов пользователя
+export const getUserOrders = async (userId) => {
+  return await prisma.order.findMany({
+    where: { userId: parseInt(userId) },
+    include: {
+      user: true,
+      games: {
+        include: {
+          game: true
+        }
+      },
+      payment: true
+    }
+  });
+};
+
+// Функция для обновления статуса заказа
+export const updateOrderStatus = async (orderId, status) => {
+  return await prisma.order.update({
+    where: { id: parseInt(orderId) },
+    data: { status },
+    include: {
+      user: true,
+      games: {
+        include: {
+          game: true
+        }
+      },
+      payment: true
+    }
+  });
+};
+
+// Функция для удаления заказа
+export const deleteOrder = async (orderId) => {
+  return await prisma.order.delete({
+    where: { id: parseInt(orderId) }
+  });
+};

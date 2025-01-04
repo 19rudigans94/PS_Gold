@@ -1,9 +1,16 @@
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
+
+// Создаем директорию для аватаров, если она не существует
+const avatarDir = 'uploads/avatars';
+if (!fs.existsSync(avatarDir)) {
+  fs.mkdirSync(avatarDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/');
+    cb(null, avatarDir);
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + path.extname(file.originalname));

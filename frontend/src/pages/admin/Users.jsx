@@ -37,13 +37,12 @@ function Users() {
   };
 
   const handleDelete = async (user) => {
-    if (!user || (!user._id && !user.id)) {
-      toast.error('Ошибка: ID пользователя не найден');
-      console.error('ID пользователя не найден:', user);
+    if (!user || !user.id) {
+      toast.error('Пользователь не найден');
       return;
     }
 
-    const userId = user._id || user.id;
+    const userId = user.id;
 
     if (window.confirm('Вы уверены, что хотите удалить этого пользователя?')) {
       try {
@@ -60,7 +59,7 @@ function Users() {
   const handleSubmit = async (data) => {
     try {
       if (selectedUser) {
-        await usersAPI.updateUser(selectedUser._id || selectedUser.id, data);
+        await usersAPI.updateUser(selectedUser.id, data);
         toast.success('Пользователь успешно обновлен');
       } else {
         await usersAPI.createUser(data);
@@ -149,7 +148,7 @@ function Users() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.map((user, index) => (
-                <tr key={user._id || user.id || index} className="hover:bg-gray-50">
+                <tr key={user.id || index} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{user.name}</div>
                   </td>
