@@ -23,7 +23,6 @@ const AdminCatalog = lazy(() => import('../pages/admin/catalog/Catalog'));
 const AdminGameKeys = lazy(() => import('../pages/admin/game-keys/GameKeys'));
 const AdminSettings = lazy(() => import('../pages/admin/settings/Settings'));
 const AdminLayout = lazy(() => import('../components/layout/AdminLayout'));
-const AddGame = lazy(() => import('../pages/admin/add-game/AddGame'));
 
 export const router = createBrowserRouter([
   {
@@ -122,10 +121,6 @@ export const router = createBrowserRouter([
             path: 'settings',
             element: <WithSuspense><AdminSettings /></WithSuspense>
           },
-          {
-            path: 'add-game',
-            element: <WithSuspense><AddGame /></WithSuspense>
-          }
         ]
       },
       {

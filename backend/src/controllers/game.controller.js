@@ -1,224 +1,157 @@
-import { PrismaClient } from '@prisma/client';
-import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { BaseController } from './base.controller.js';
+import { AppError } from '../middleware/error.middleware.js';
+import { handleFileUpload, removeFile } from '../utils/crud.utils.js';
+import { UPLOAD_DIRS } from '../config/constants.js';
+import prisma from '../lib/prisma.js';
 
-const prisma = new PrismaClient();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Вспомогательная функция для обработки ошибок
-const handleError = (res, error, message) => {
-  console.error(message, error);
-  res.status(error.status || 500).json({ 
-    success: false, 
-    message: error.message || message
-  });
-};
-
-export const getAllGames = async (req, res) => {
-  try {
-    const games = await prisma.game.findMany({
-      include: {
-        _count: {
-          select: { keys: true }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
+class GameController extends BaseController {
+  constructor() {
+    super('game');
+    this.defaultInclude = {
+      _count: {
+        select: { gameKeys: true }
       }
-    });
-    res.json({ success: true, data: games });
-  } catch (error) {
-    handleError(res, error, 'Ошибка при получении списка игр');
+    };
   }
-};
 
-export const getGameById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const game = await prisma.game.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        _count: {
-          select: { keys: true }
-        }
-      }
-    });
-
-    if (!game) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Игра не найдена' 
-      });
-    }
-
-    res.json({ success: true, data: game });
-  } catch (error) {
-    handleError(res, error, 'Ошибка при получении игры');
+  async getAll() {
+    return await super.getAll(this.defaultInclude);
   }
-};
 
-export const createGame = async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      price,
-      genre,
-      platform,
-      publisher,
-      releaseDate,
-      status
-    } = req.body;
+  async getById(id) {
+    return await super.getById(id, this.defaultInclude);
+  }
 
-    // Обработка загруженного изображения
-    let imageUrl = null;
-    if (req.file) {
-      imageUrl = `/uploads/games/${req.file.filename}`;
-    }
-
-    const game = await prisma.game.create({
-      data: {
-        title,
-        description,
-        price: parseFloat(price),
-        genre,
-        platform,
-        publisher,
-        releaseDate: releaseDate ? new Date(releaseDate) : null,
+  async create(data, file) {
+    try {
+      const imageUrl = await handleFileUpload(file, UPLOAD_DIRS.GAMES);
+      
+      return await super.create({
+        ...data,
+        price: parseFloat(data.price),
         imageUrl,
-        status: status || 'active'
-      }
-    });
-
-    res.status(201).json({ 
-      success: true, 
-      data: game,
-      message: 'Игра успешно создана' 
-    });
-  } catch (error) {
-    // Удаляем загруженный файл в случае ошибки
-    if (req.file) {
-      const filePath = path.join(__dirname, '../../uploads/games', req.file.filename);
-      await fs.remove(filePath).catch(console.error);
-    }
-    handleError(res, error, 'Ошибка при создании игры');
-  }
-};
-
-export const updateGame = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      title,
-      description,
-      price,
-      genre,
-      platform,
-      publisher,
-      releaseDate,
-      status
-    } = req.body;
-
-    // Проверяем существование игры
-    const existingGame = await prisma.game.findUnique({
-      where: { id: parseInt(id) }
-    });
-
-    if (!existingGame) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Игра не найдена' 
+        status: data.status || 'active'
       });
-    }
-
-    // Обработка загруженного изображения
-    let imageUrl = existingGame.imageUrl;
-    if (req.file) {
-      // Удаляем старое изображение
-      if (existingGame.imageUrl) {
-        const oldImagePath = path.join(__dirname, '../..', existingGame.imageUrl);
-        await fs.remove(oldImagePath).catch(console.error);
+    } catch (error) {
+      if (file) {
+        await removeFile(file.path);
       }
-      imageUrl = `/uploads/games/${req.file.filename}`;
+      throw error;
     }
-
-    const updatedGame = await prisma.game.update({
-      where: { id: parseInt(id) },
-      data: {
-        title,
-        description,
-        price: price ? parseFloat(price) : undefined,
-        genre,
-        platform,
-        publisher,
-        releaseDate: releaseDate ? new Date(releaseDate) : undefined,
-        imageUrl,
-        status: status || undefined
-      }
-    });
-
-    res.json({ 
-      success: true, 
-      data: updatedGame,
-      message: 'Игра успешно обновлена' 
-    });
-  } catch (error) {
-    // Удаляем загруженный файл в случае ошибки
-    if (req.file) {
-      const filePath = path.join(__dirname, '../../uploads/games', req.file.filename);
-      await fs.remove(filePath).catch(console.error);
-    }
-    handleError(res, error, 'Ошибка при обновлении игры');
   }
-};
 
-export const deleteGame = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Проверяем существование игры
-    const game = await prisma.game.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        _count: {
-          select: { keys: true }
+  async update(id, data, file) {
+    try {
+      const game = await this.getById(id);
+      
+      let imageUrl = undefined;
+      if (file) {
+        imageUrl = await handleFileUpload(file, UPLOAD_DIRS.GAMES);
+        if (game.imageUrl) {
+          await removeFile(game.imageUrl);
         }
       }
+
+      return await super.update(id, {
+        ...data,
+        price: data.price ? parseFloat(data.price) : undefined,
+        imageUrl: imageUrl || undefined
+      });
+    } catch (error) {
+      if (file && imageUrl) {
+        await removeFile(imageUrl);
+      }
+      throw error;
+    }
+  }
+  async delete(id) {
+    const parsedId = parseInt(id);
+    const game = await this.getById(parsedId);
+  
+    // Удаляем связанные ключи
+    await prisma.gameKey.deleteMany({
+      where: { gameId: parsedId }
     });
-
-    if (!game) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Игра не найдена' 
-      });
-    }
-
-    // Проверяем, есть ли связанные ключи
-    if (game._count.keys > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Невозможно удалить игру, так как с ней связаны ключи'
-      });
-    }
-
-    // Удаляем изображение
-    if (game.imageUrl) {
-      const imagePath = path.join(__dirname, '../..', game.imageUrl);
-      await fs.remove(imagePath).catch(console.error);
-    }
-
+  
     // Удаляем игру
-    await prisma.game.delete({
-      where: { id: parseInt(id) }
-    });
-
-    res.json({ 
-      success: true, 
-      message: 'Игра успешно удалена' 
-    });
-  } catch (error) {
-    handleError(res, error, 'Ошибка при удалении игры');
+    await super.delete(parsedId);
+  
+    // Удаляем изображение, если оно есть
+    if (game.imageUrl) {
+      await removeFile(game.imageUrl);
+    }
   }
-};
+
+  // HTTP handlers
+  handleGetAll = async (req, res, next) => {
+    try {
+      const games = await this.getAll();
+      res.json({ 
+        success: true, 
+        data: games 
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleGetById = async (req, res, next) => {
+    try {
+      const game = await this.getById(req.params.id);
+      res.json({ 
+        success: true, 
+        data: game 
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleCreate = async (req, res, next) => {
+    try {
+      const game = await this.create(req.body, req.file);
+      res.status(201).json({ 
+        success: true, 
+        data: game,
+        message: 'Игра успешно создана' 
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleUpdate = async (req, res, next) => {
+    try {
+      const game = await this.update(req.params.id, req.body, req.file);
+      res.json({ 
+        success: true, 
+        data: game,
+        message: 'Игра успешно обновлена' 
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleDelete = async (req, res, next) => {
+    try {
+      await this.delete(req.params.id);
+      res.json({ 
+        success: true, 
+        message: 'Игра успешно удалена' 
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+const gameController = new GameController();
+
+export const {
+  handleGetAll: getAllGames,
+  handleGetById: getGameById,
+  handleCreate: createGame,
+  handleUpdate: updateGame,
+  handleDelete: deleteGame
+} = gameController;

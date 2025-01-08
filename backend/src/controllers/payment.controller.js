@@ -1,164 +1,181 @@
+import { BaseController } from './base.controller.js';
+import { AppError } from '../middleware/error.middleware.js';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export const getAllPayments = async (req, res) => {
-  try {
-    const payments = await prisma.payment.findMany({
-      include: {
-        order: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                name: true
-              }
+class PaymentController extends BaseController {
+  constructor() {
+    super('payment', prisma);
+    this.defaultInclude = {
+      order: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true
+            }
+          },
+          games: {
+            include: {
+              game: true
             }
           }
         }
       }
-    });
-    res.json({ success: true, data: payments });
-  } catch (error) {
-    console.error('Ошибка при получении платежей:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при получении платежей' 
+    };
+  }
+
+  async getAll() {
+    return await this.prisma.payment.findMany({
+      include: this.defaultInclude,
+      orderBy: { createdAt: 'desc' }
     });
   }
-};
 
-export const getPaymentById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const payment = await prisma.payment.findUnique({
+  async getById(id) {
+    const payment = await this.prisma.payment.findUnique({
       where: { id: parseInt(id) },
-      include: {
-        order: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                name: true
-              }
-            },
-            games: {
-              include: {
-                game: true
-              }
-            }
-          }
-        }
-      }
+      include: this.defaultInclude
     });
 
     if (!payment) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Платеж не найден' 
-      });
+      throw new AppError('Платеж не найден', 404);
     }
 
-    res.json({ success: true, data: payment });
-  } catch (error) {
-    console.error('Ошибка при получении платежа:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при получении платежа' 
-    });
+    return payment;
   }
-};
 
-export const createPayment = async (req, res) => {
-  try {
-    const { orderId, paymentMethod } = req.body;
+  async create(userId, data) {
+    const { orderId, paymentMethod } = data;
 
     // Проверяем существование заказа
-    const order = await prisma.order.findUnique({
+    const order = await this.prisma.order.findUnique({
       where: { id: parseInt(orderId) }
     });
 
     if (!order) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Заказ не найден' 
-      });
+      throw new AppError('Заказ не найден', 404);
     }
 
-    if (order.userId !== req.user.id) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Нет доступа к этому заказу' 
-      });
+    if (order.userId !== userId) {
+      throw new AppError('Нет доступа к этому заказу', 403);
     }
 
     // Проверяем, нет ли уже платежа для этого заказа
-    const existingPayment = await prisma.payment.findUnique({
+    const existingPayment = await this.prisma.payment.findUnique({
       where: { orderId: parseInt(orderId) }
     });
 
     if (existingPayment) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Платеж для этого заказа уже существует' 
-      });
+      throw new AppError('Платеж для этого заказа уже существует', 400);
     }
 
-    // Создаем платеж
-    const payment = await prisma.payment.create({
-      data: {
-        orderId: parseInt(orderId),
-        amount: order.totalAmount,
-        status: 'pending',
-        paymentMethod
-      }
-    });
+    // Создаем платеж в транзакции
+    return await this.prisma.$transaction(async (prisma) => {
+      const payment = await prisma.payment.create({
+        data: {
+          orderId: parseInt(orderId),
+          amount: order.totalAmount,
+          paymentMethod,
+          status: 'pending'
+        },
+        include: this.defaultInclude
+      });
 
-    // Здесь можно добавить интеграцию с платежной системой
-    // и обработку реального платежа
+      // Обновляем статус заказа
+      await prisma.order.update({
+        where: { id: parseInt(orderId) },
+        data: { status: 'processing' }
+      });
 
-    res.status(201).json({ success: true, data: payment });
-  } catch (error) {
-    console.error('Ошибка при создании платежа:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при создании платежа' 
+      return payment;
     });
   }
-};
 
-export const getPaymentStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const payment = await prisma.payment.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        order: true
+  async updateStatus(id, status) {
+    const payment = await this.getById(id);
+    
+    if (!['pending', 'processing', 'completed', 'failed'].includes(status)) {
+      throw new AppError('Неверный статус платежа', 400);
+    }
+
+    return await this.prisma.$transaction(async (prisma) => {
+      const updatedPayment = await prisma.payment.update({
+        where: { id: parseInt(id) },
+        data: { status },
+        include: this.defaultInclude
+      });
+
+      // Обновляем статус заказа в зависимости от статуса платежа
+      if (status === 'completed') {
+        await prisma.order.update({
+          where: { id: payment.orderId },
+          data: { status: 'completed' }
+        });
+      } else if (status === 'failed') {
+        await prisma.order.update({
+          where: { id: payment.orderId },
+          data: { status: 'pending' }
+        });
       }
-    });
 
-    if (!payment) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Платеж не найден' 
-      });
-    }
-
-    if (payment.order.userId !== req.user.id) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Нет доступа к этому платежу' 
-      });
-    }
-
-    res.json({ success: true, data: payment });
-  } catch (error) {
-    console.error('Ошибка при получении статуса платежа:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при получении статуса платежа' 
+      return updatedPayment;
     });
   }
-};
+
+  // Обработчики HTTP запросов
+  handleGetAll = async (req, res, next) => {
+    try {
+      const payments = await this.getAll();
+      res.json({ success: true, data: payments });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleGetById = async (req, res, next) => {
+    try {
+      const payment = await this.getById(parseInt(req.params.id));
+      res.json({ success: true, data: payment });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleCreate = async (req, res, next) => {
+    try {
+      const payment = await this.create(req.user.id, req.body);
+      res.status(201).json({ 
+        success: true, 
+        data: payment,
+        message: 'Платеж успешно создан'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleUpdateStatus = async (req, res, next) => {
+    try {
+      const payment = await this.updateStatus(parseInt(req.params.id), req.body.status);
+      res.json({ 
+        success: true, 
+        data: payment,
+        message: 'Статус платежа успешно обновлен'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+const paymentController = new PaymentController();
+
+export const {
+  handleGetAll: getAllPayments,
+  handleGetById: getPaymentById,
+  handleCreate: createPayment,
+  handleUpdateStatus: getPaymentStatus
+} = paymentController;

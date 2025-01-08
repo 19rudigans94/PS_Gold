@@ -87,19 +87,6 @@ export const GameForm = ({
           <TextField
             fullWidth
             margin="normal"
-            label="Дата релиза"
-            name="releaseDate"
-            type="date"
-            value={formData.releaseDate}
-            onChange={onInputChange}
-            InputLabelProps={{
-              shrink: true,
-            }}
-            required
-          />
-          <TextField
-            fullWidth
-            margin="normal"
             label="URL изображения"
             name="imageUrl"
             value={formData.imageUrl}

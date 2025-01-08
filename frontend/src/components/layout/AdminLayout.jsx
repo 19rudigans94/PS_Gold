@@ -28,7 +28,6 @@ function AdminLayout() {
     { path: '/admin/users', label: 'Пользователи', icon: <UsersIcon /> },
     { path: '/admin/orders', label: 'Заказы', icon: <OrdersIcon /> },
     { path: '/admin/catalog', label: 'Каталог', icon: <CatalogIcon /> },
-    { path: '/admin/add-game', label: 'Добавить игру', icon: <CatalogIcon /> },
     { path: '/admin/game-keys', label: 'Ключи', icon: <KeysIcon /> },
     { path: '/admin/settings', label: 'Настройки', icon: <SettingsIcon /> }
   ];

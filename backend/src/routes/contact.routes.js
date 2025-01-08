@@ -1,6 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { submitContactForm } from '../controllers/contact.js';
+import { submitContactForm } from '../controllers/contact.controller.js';
 
 const router = express.Router();
 

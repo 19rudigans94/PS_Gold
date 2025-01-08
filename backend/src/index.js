@@ -1,8 +1,12 @@
 import app from './app.js';
 import prisma from './lib/prisma.js';
 import { startCleanupTasks } from './utils/cleanupTasks.js';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
+
+console.log('JWT_SECRET:', process.env.JWT_SECRET);
 
 // Запуск периодической очистки истекших резерваций
 startCleanupTasks();

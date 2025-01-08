@@ -9,32 +9,15 @@ import {
   updateGame,
   deleteGame
 } from '../controllers/game.controller.js';
+import { createRoutes } from '../middleware/route.middleware.js';
 
-const router = express.Router();
-
-// Публичные маршруты
-router.get('/games', getAllGames);
-router.get('/games/:id', validateId, getGameById);
-
-// Защищенные маршруты (только для админов)
-router.use(protect, admin);
-
-router.post('/games', 
-  uploadGameImage,
-  validate(gameValidation),
-  createGame
-);
-
-router.put('/games/:id',
-  validateId,
-  uploadGameImage,
-  validate(gameValidation),
-  updateGame
-);
-
-router.delete('/games/:id',
-  validateId,
-  deleteGame
-);
-
-export default router;
+export default createRoutes()
+  // Публичные маршруты
+  .public('get', '/', getAllGames)
+  .public('get', '/:id', validateId, getGameById)
+  
+  // Административные маршруты
+  .adminOnly('post', '/', uploadGameImage, validate(gameValidation), createGame)
+  .adminOnly('put', '/:id', validateId, uploadGameImage, validate(gameValidation), updateGame)
+  .adminOnly('delete', '/:id', validateId, deleteGame)
+  .build();

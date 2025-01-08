@@ -17,7 +17,6 @@ export const useCatalog = () => {
     genre: '',
     platform: '',
     publisher: '',
-    releaseDate: '',
     imageUrl: '',
     status: 'active'
   });
@@ -65,7 +64,6 @@ export const useCatalog = () => {
         genre: game.genre || '',
         platform: game.platform || '',
         publisher: game.publisher || '',
-        releaseDate: game.releaseDate ? new Date(game.releaseDate).toISOString().split('T')[0] : '',
         imageUrl: game.imageUrl || '',
         status: game.status || 'active'
       });
@@ -78,7 +76,6 @@ export const useCatalog = () => {
         genre: '',
         platform: '',
         publisher: '',
-        releaseDate: '',
         imageUrl: '',
         status: 'active'
       });
@@ -97,7 +94,6 @@ export const useCatalog = () => {
       genre: '',
       platform: '',
       publisher: '',
-      releaseDate: '',
       imageUrl: '',
       status: 'active'
     });

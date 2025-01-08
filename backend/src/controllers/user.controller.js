@@ -1,229 +1,195 @@
-import { PrismaClient } from '@prisma/client';
+import { BaseController } from './base.controller.js';
+import { AppError } from '../middleware/error.middleware.js';
 import bcrypt from 'bcryptjs';
-import fs from 'fs-extra';
-import path from 'path';
+import { handleFileUpload, removeFile } from '../utils/crud.utils.js';
+import { UPLOAD_DIRS } from '../config/constants.js';
 
-const prisma = new PrismaClient();
-
-export const getAllUsers = async (req, res) => {
-  try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        status: true,
-        avatar: true,
-        createdAt: true
-      }
-    });
-    res.json({ success: true, data: users });
-  } catch (error) {
-    console.error('Ошибка при получении пользователей:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при получении пользователей' 
-    });
-  }
-};
-
-export const getUserById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        status: true,
-        avatar: true,
-        createdAt: true
-      }
-    });
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Пользователь не найден' 
-      });
-    }
-
-    res.json({ success: true, data: user });
-  } catch (error) {
-    console.error('Ошибка при получении пользователя:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при получении пользователя' 
-    });
-  }
-};
-
-export const updateUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { email, name, role, status, password } = req.body;
-
-    const updateData = {
-      email,
-      name,
-      role,
-      status
+class UserController extends BaseController {
+  constructor() {
+    super('user');
+    this.defaultSelect = {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      status: true,
+      avatar: true,
+      createdAt: true
     };
+  }
 
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(password, salt);
-    }
-
-    const user = await prisma.user.update({
-      where: { id: parseInt(id) },
-      data: updateData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        status: true,
-        avatar: true
-      }
-    });
-
-    res.json({ success: true, data: user });
-  } catch (error) {
-    console.error('Ошибка при обновлении пользователя:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при обновлении пользователя' 
+  async getAll() {
+    return await this.prisma.user.findMany({
+      select: this.defaultSelect
     });
   }
-};
 
-export const deleteUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) }
+  async getById(id) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      select: this.defaultSelect
     });
 
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Пользователь не найден' 
+      throw new AppError('Пользователь не найден', 404);
+    }
+
+    return user;
+  }
+
+  async update(id, data, file) {
+    try {
+      const user = await this.getById(id);
+      
+      const updateData = {
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        status: data.status
+      };
+
+      if (data.password) {
+        const salt = await bcrypt.genSalt(10);
+        updateData.password = await bcrypt.hash(data.password, salt);
+      }
+
+      if (file) {
+        const avatarUrl = await handleFileUpload(file, UPLOAD_DIRS.AVATARS);
+        if (avatarUrl && user.avatar) {
+          await removeFile(user.avatar);
+        }
+        updateData.avatar = avatarUrl;
+      }
+
+      return await this.prisma.user.update({
+        where: { id: parseInt(id) },
+        data: updateData,
+        select: this.defaultSelect
       });
+    } catch (error) {
+      if (file) {
+        await removeFile(file.path);
+      }
+      throw error;
+    }
+  }
+
+  async delete(id) {
+    const user = await this.getById(id);
+
+    // Проверяем, нет ли активных заказов
+    const activeOrders = await this.prisma.order.count({
+      where: {
+        userId: parseInt(id),
+        status: { in: ['pending', 'processing'] }
+      }
+    });
+
+    if (activeOrders > 0) {
+      throw new AppError('Невозможно удалить пользователя с активными заказами', 400);
     }
 
     // Удаляем аватар пользователя
     if (user.avatar) {
-      const avatarPath = path.join(process.cwd(), 'uploads', 'avatars', 
-        path.basename(user.avatar));
-      await fs.unlink(avatarPath).catch(() => {});
+      await removeFile(user.avatar);
     }
 
-    await prisma.user.delete({
+    await this.prisma.user.delete({
       where: { id: parseInt(id) }
     });
-
-    res.json({ 
-      success: true, 
-      message: 'Пользователь успешно удален' 
-    });
-  } catch (error) {
-    console.error('Ошибка при удалении пользователя:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при удалении пользователя' 
-    });
   }
-};
 
-export const getProfile = async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+  async getProfile(userId) {
+    return await this.prisma.user.findUnique({
+      where: { id: userId },
       select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        avatar: true
+        ...this.defaultSelect,
+        orders: {
+          select: {
+            id: true,
+            status: true,
+            totalAmount: true,
+            createdAt: true
+          }
+        }
       }
-    });
-
-    res.json({ success: true, data: user });
-  } catch (error) {
-    console.error('Ошибка при получении профиля:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при получении профиля' 
     });
   }
-};
 
-export const updateProfile = async (req, res) => {
-  try {
-    const { name, currentPassword, newPassword } = req.body;
-    const updateData = {};
-
-    if (name) {
-      updateData.name = name;
+  // Обработчики HTTP запросов
+  handleGetAll = async (req, res, next) => {
+    try {
+      const users = await this.getAll();
+      res.json({ success: true, data: users });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    if (req.file) {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id }
+  handleGetById = async (req, res, next) => {
+    try {
+      const user = await this.getById(parseInt(req.params.id));
+      res.json({ success: true, data: user });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleUpdate = async (req, res, next) => {
+    try {
+      const user = await this.update(parseInt(req.params.id), req.body, req.file);
+      res.json({ 
+        success: true, 
+        data: user,
+        message: 'Пользователь успешно обновлен'
       });
-
-      if (user.avatar) {
-        const oldAvatarPath = path.join(process.cwd(), 'uploads', 'avatars', 
-          path.basename(user.avatar));
-        await fs.unlink(oldAvatarPath).catch(() => {});
-      }
-
-      updateData.avatar = `/api/uploads/avatars/${req.file.filename}`;
+    } catch (error) {
+      next(error);
     }
+  };
 
-    if (currentPassword && newPassword) {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id }
+  handleDelete = async (req, res, next) => {
+    try {
+      await this.delete(parseInt(req.params.id));
+      res.json({ 
+        success: true, 
+        message: 'Пользователь успешно удален'
       });
-
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Неверный текущий пароль' 
-        });
-      }
-
-      const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(newPassword, salt);
+    } catch (error) {
+      next(error);
     }
+  };
 
-    const updatedUser = await prisma.user.update({
-      where: { id: req.user.id },
-      data: updateData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        avatar: true
-      }
-    });
-
-    res.json({ success: true, data: updatedUser });
-  } catch (error) {
-    if (req.file) {
-      await fs.unlink(req.file.path);
+  handleGetProfile = async (req, res, next) => {
+    try {
+      const profile = await this.getProfile(req.user.id);
+      res.json({ success: true, data: profile });
+    } catch (error) {
+      next(error);
     }
-    console.error('Ошибка при обновлении профиля:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при обновлении профиля' 
-    });
-  }
-};
+  };
+
+  handleUpdateProfile = async (req, res, next) => {
+    try {
+      const user = await this.update(req.user.id, req.body, req.file);
+      res.json({ 
+        success: true, 
+        data: user,
+        message: 'Профиль успешно обновлен'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+const userController = new UserController();
+
+export const {
+  handleGetAll: getAllUsers,
+  handleGetById: getUserById,
+  handleUpdate: updateUser,
+  handleDelete: deleteUser,
+  handleGetProfile: getProfile,
+  handleUpdateProfile: updateProfile
+} = userController;

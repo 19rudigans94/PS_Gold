@@ -1,5 +1,4 @@
-import { prisma } from '../index.js';
-
+import prisma from '../lib/prisma.js';
 // Функция для создания настроек
 export const createSettings = async (settingsData) => {
   return await prisma.settings.create({

@@ -1,214 +1,219 @@
 import { PrismaClient } from '@prisma/client';
+import { BaseController } from './base.controller.js';
+import { AppError } from '../middleware/error.middleware.js';
 
 const prisma = new PrismaClient();
 
-export const getAllOrders = async (req, res) => {
-  try {
-    const orders = await prisma.order.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true
-          }
-        },
-        games: {
-          include: {
-            game: true
-          }
-        },
-        payment: true
-      }
-    });
-    res.json({ success: true, data: orders });
-  } catch (error) {
-    console.error('Ошибка при получении заказов:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при получении заказов' 
+class OrderController extends BaseController {
+  constructor() {
+    super('order', prisma);
+    this.defaultInclude = {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true
+        }
+      },
+      games: {
+        include: {
+          game: true
+        }
+      },
+      payment: true
+    };
+  }
+
+  async getAll() {
+    return await this.prisma.order.findMany({
+      include: this.defaultInclude,
+      orderBy: { createdAt: 'desc' }
     });
   }
-};
 
-export const getOrderById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const order = await prisma.order.findUnique({
+  async getById(id) {
+    const order = await this.prisma.order.findUnique({
       where: { id: parseInt(id) },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true
-          }
-        },
-        games: {
-          include: {
-            game: true
-          }
-        },
-        payment: true
-      }
+      include: this.defaultInclude
     });
 
     if (!order) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Заказ не найден' 
-      });
+      throw new AppError('Заказ не найден', 404);
     }
 
-    res.json({ success: true, data: order });
-  } catch (error) {
-    console.error('Ошибка при получении заказа:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при получении заказа' 
+    return order;
+  }
+
+  async getUserOrders(userId) {
+    return await this.prisma.order.findMany({
+      where: { userId },
+      include: this.defaultInclude,
+      orderBy: { createdAt: 'desc' }
     });
   }
-};
 
-export const getUserOrders = async (req, res) => {
-  try {
-    const orders = await prisma.order.findMany({
-      where: { userId: req.user.id },
-      include: {
-        games: {
-          include: {
-            game: true
-          }
-        },
-        payment: true
-      }
+  async create(userId, orderData) {
+    const { games } = orderData;
+    
+    // Проверяем наличие игр
+    const gameIds = games.map(id => parseInt(id));
+    const existingGames = await this.prisma.game.findMany({
+      where: { id: { in: gameIds } }
     });
-    res.json({ success: true, data: orders });
-  } catch (error) {
-    console.error('Ошибка при получении заказов пользователя:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при получении заказов' 
-    });
-  }
-};
 
-export const createOrder = async (req, res) => {
-  try {
-    const { games } = req.body;
+    if (existingGames.length !== gameIds.length) {
+      throw new AppError('Некоторые игры не найдены', 400);
+    }
+
+    // Проверяем доступность игр и считаем общую сумму
     let totalAmount = 0;
-
-    // Проверяем наличие игр и рассчитываем общую сумму
-    const gameDetails = await Promise.all(
-      games.map(async (item) => {
-        const game = await prisma.game.findUnique({
-          where: { id: item.gameId }
-        });
-
-        if (!game) {
-          throw new Error(`Игра с ID ${item.gameId} не найдена`);
+    for (const game of existingGames) {
+      const availableKeys = await this.prisma.gameKey.count({
+        where: {
+          gameId: game.id,
+          status: 'available'
         }
+      });
 
-        if (!game.inStock || game.availableCopies < item.quantity) {
-          throw new Error(`Недостаточно копий игры ${game.title}`);
-        }
+      if (availableKeys === 0) {
+        throw new AppError(`Игра ${game.title} недоступна для покупки`, 400);
+      }
 
-        totalAmount += game.price * item.quantity;
-        return { game, quantity: item.quantity };
-      })
-    );
+      totalAmount += game.price;
+    }
 
     // Создаем заказ в транзакции
-    const order = await prisma.$transaction(async (prisma) => {
+    return await this.prisma.$transaction(async (prisma) => {
       // Создаем заказ
-      const newOrder = await prisma.order.create({
+      const order = await prisma.order.create({
         data: {
-          userId: req.user.id,
+          userId,
           totalAmount,
-          status: 'pending',
-          games: {
-            create: gameDetails.map(({ game, quantity }) => ({
-              gameId: game.id,
-              quantity,
-              price: game.price
-            }))
-          }
-        },
-        include: {
-          games: {
-            include: {
-              game: true
-            }
-          }
+          status: 'pending'
         }
       });
 
-      // Обновляем количество доступных копий
-      await Promise.all(
-        gameDetails.map(({ game, quantity }) =>
-          prisma.game.update({
-            where: { id: game.id },
-            data: {
-              availableCopies: {
-                decrement: quantity
-              }
-            }
-          })
-        )
-      );
+      // Добавляем игры к заказу и резервируем ключи
+      for (const gameId of gameIds) {
+        // Находим доступный ключ
+        const key = await prisma.gameKey.findFirst({
+          where: {
+            gameId,
+            status: 'available'
+          }
+        });
 
-      return newOrder;
-    });
+        // Резервируем ключ
+        await prisma.gameKey.update({
+          where: { id: key.id },
+          data: {
+            status: 'reserved',
+            orderId: order.id
+          }
+        });
+      }
 
-    res.status(201).json({ success: true, data: order });
-  } catch (error) {
-    console.error('Ошибка при создании заказа:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Ошибка при создании заказа' 
+      return await prisma.order.findUnique({
+        where: { id: order.id },
+        include: this.defaultInclude
+      });
     });
   }
-};
 
-export const updateOrderStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    const order = await prisma.order.update({
-      where: { id: parseInt(id) },
-      data: { status },
-      include: {
-        games: {
-          include: {
-            game: true
-          }
-        }
-      }
-    });
-
-    // Если заказ отменен, возвращаем копии игр в наличие
-    if (status === 'cancelled') {
-      await Promise.all(
-        order.games.map((item) =>
-          prisma.game.update({
-            where: { id: item.gameId },
-            data: {
-              availableCopies: {
-                increment: item.quantity
-              }
-            }
-          })
-        )
-      );
+  async updateStatus(id, status) {
+    const order = await this.getById(id);
+    
+    if (!['pending', 'processing', 'completed', 'cancelled'].includes(status)) {
+      throw new AppError('Неверный статус заказа', 400);
     }
 
-    res.json({ success: true, data: order });
-  } catch (error) {
-    console.error('Ошибка при обновлении статуса заказа:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Ошибка при обновлении статуса заказа' 
+    // Если заказ отменяется, освобождаем ключи
+    if (status === 'cancelled' && order.status !== 'cancelled') {
+      await this.prisma.gameKey.updateMany({
+        where: { orderId: order.id },
+        data: {
+          status: 'available',
+          orderId: null
+        }
+      });
+    }
+
+    // Если заказ завершается, помечаем ключи как использованные
+    if (status === 'completed' && order.status !== 'completed') {
+      await this.prisma.gameKey.updateMany({
+        where: { orderId: order.id },
+        data: { status: 'used' }
+      });
+    }
+
+    return await this.prisma.order.update({
+      where: { id: parseInt(id) },
+      data: { status },
+      include: this.defaultInclude
     });
   }
-};
+
+  // Обработчики HTTP запросов
+  handleGetAll = async (req, res, next) => {
+    try {
+      const orders = await this.getAll();
+      res.json({ success: true, data: orders });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleGetById = async (req, res, next) => {
+    try {
+      const order = await this.getById(parseInt(req.params.id));
+      res.json({ success: true, data: order });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleGetUserOrders = async (req, res, next) => {
+    try {
+      const orders = await this.getUserOrders(req.user.id);
+      res.json({ success: true, data: orders });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleCreate = async (req, res, next) => {
+    try {
+      const order = await this.create(req.user.id, req.body);
+      res.status(201).json({ 
+        success: true, 
+        data: order,
+        message: 'Заказ успешно создан'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  handleUpdateStatus = async (req, res, next) => {
+    try {
+      const order = await this.updateStatus(parseInt(req.params.id), req.body.status);
+      res.json({ 
+        success: true, 
+        data: order,
+        message: 'Статус заказа успешно обновлен'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+const orderController = new OrderController();
+
+export const {
+  handleGetAll: getAllOrders,
+  handleGetById: getOrderById,
+  handleGetUserOrders: getUserOrders,
+  handleCreate: createOrder,
+  handleUpdateStatus: updateOrderStatus
+} = orderController;
