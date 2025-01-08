@@ -1,64 +1,48 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { authAPI } from '../../services/api';
-import Cookies from 'js-cookie';
+import api from '../../services/api';
+import { toast } from 'react-toastify';
 
 const initialState = {
   user: null,
   isAuthenticated: false,
+  isAdmin: false,
   isLoading: false,
-  error: null,
-  initialized: false
+  initialized: false,
+  error: null
 };
 
-// Async thunk for checking auth status
+export const login = createAsyncThunk(
+  'auth/login',
+  async (credentials, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/auth/login', credentials);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Ошибка входа');
+    }
+  }
+);
+
+export const logout = createAsyncThunk(
+  'auth/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/auth/logout');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Ошибка выхода');
+    }
+  }
+);
+
 export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      const token = Cookies.get('authToken');
-      if (!token) throw new Error('No token found');
-      
-      const userData = await authAPI.checkAuth();
-      return userData;
-    } catch (err) {
-      Cookies.remove('authToken');
-      return rejectWithValue(err.message);
-    }
-  }
-);
-
-// Async thunk for user login
-export const loginUser = createAsyncThunk(
-  'auth/loginUser',
-  async (credentials, { rejectWithValue }) => {
-    try {
-      const response = await authAPI.login(credentials);
-      
-      if (response.token) {
-        Cookies.set('authToken', response.token, { expires: 7 });
-      }
-      
-      return response.user;
-    } catch (err) {
-      return rejectWithValue(err.message || 'Ошибка при входе');
-    }
-  }
-);
-
-// Async thunk for user registration
-export const registerUser = createAsyncThunk(
-  'auth/registerUser',
-  async (userData, { rejectWithValue, dispatch }) => {
-    try {
-      const response = await authAPI.register(userData);
-      
-      if (response.token) {
-        Cookies.set('authToken', response.token, { expires: 7 });
-      }
-      
-      return response.user;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      const response = await api.get('/auth/me');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Ошибка проверки статуса');
     }
   }
 );
@@ -67,74 +51,84 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout(state) {
-      state.user = null;
-      state.isAuthenticated = false;
+    setInitialized: (state, action) => {
+      state.initialized = action.payload;
+    },
+    resetError: (state) => {
       state.error = null;
-      Cookies.remove('authToken');
-    },
-    setInitialized(state) {
-      state.initialized = true;
-    },
-    clearError(state) {
-      state.error = null;
-    },
-    updateUser(state, action) {
-      state.user = { ...state.user, ...action.payload };
     }
   },
   extraReducers: (builder) => {
     builder
+      // Login
+      .addCase(login.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(login.fulfilled, (state, action) => {
+        if (action.payload.success && action.payload.data?.user) {
+          state.isLoading = false;
+          state.isAuthenticated = true;
+          state.user = action.payload.data.user;
+          state.isAdmin = action.payload.data.user.role === 'admin';
+          state.error = null;
+          toast.success('Успешный вход в систему');
+        } else {
+          state.isLoading = false;
+          state.error = action.payload.message || 'Неизвестная ошибка';
+          toast.error(state.error);
+        }
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+        state.isAuthenticated = false;
+        state.user = null;
+        state.isAdmin = false;
+        toast.error(action.payload);
+      })
+      // Logout
+      .addCase(logout.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.isLoading = false;
+        state.isAuthenticated = false;
+        state.user = null;
+        state.isAdmin = false;
+        state.error = null;
+        toast.success('Успешный выход из системы');
+      })
+      .addCase(logout.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+        toast.error(action.payload);
+      })
       // Check Auth Status
       .addCase(checkAuthStatus.pending, (state) => {
         state.isLoading = true;
-        state.error = null;
       })
       .addCase(checkAuthStatus.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
-        state.error = null;
+        if (action.payload.success && action.payload.data?.user) {
+          state.isLoading = false;
+          state.isAuthenticated = true;
+          state.user = action.payload.data.user;
+          state.isAdmin = action.payload.data.user.role === 'admin';
+          state.error = null;
+        } else {
+          state.isLoading = false;
+          state.error = action.payload.message || 'Неизвестная ошибка';
+        }
       })
       .addCase(checkAuthStatus.rejected, (state, action) => {
         state.isLoading = false;
-        state.user = null;
         state.isAuthenticated = false;
-        state.error = action.payload;
-      })
-      // Login
-      .addCase(loginUser.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
-        state.error = null;
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload;
-      })
-      // Register
-      .addCase(registerUser.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(registerUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
-        state.error = null;
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.isLoading = false;
+        state.user = null;
+        state.isAdmin = false;
         state.error = action.payload;
       });
   }
 });
 
-export const { logout, setInitialized, clearError, updateUser } = authSlice.actions;
-
+export const { setInitialized, resetError } = authSlice.actions;
 export default authSlice.reducer;

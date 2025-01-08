@@ -1,51 +1,12 @@
-import { prisma } from '../utils/prisma.js';
-
-// Функция для создания новой игры
-export const createGame = async (gameData) => {
-  try {
-    // Преобразуем строковые значения в нужные типы
-    const processedData = {
-      ...gameData,
-      price: parseFloat(gameData.price),
-      releaseYear: parseInt(gameData.releaseYear),
-      isDigital: gameData.isDigital === 'true',
-      totalCopies: parseInt(gameData.totalCopies) || 0,
-      availableCopies: parseInt(gameData.totalCopies) || 0, // Изначально доступно столько же копий, сколько всего
-    };
-
-    // Если игра цифровая, создаем цифровые ключи
-    if (processedData.isDigital && processedData.totalCopies > 0) {
-      const keys = Array(processedData.totalCopies).fill(null).map(() => ({
-        password: Math.random().toString(36).substring(2, 15),
-        status: 'available'
-      }));
-      processedData.keys = {
-        create: keys
-      };
-    }
-
-    console.log('Processed game data:', processedData);
-
-    return await prisma.game.create({
-      data: processedData,
-      include: {
-        keys: true
-      }
-    });
-  } catch (error) {
-    console.error('Error in createGame:', error);
-    throw error;
-  }
-};
+import prisma from '../lib/prisma.js';
 
 // Функция для получения всех игр
 export const getAllGames = async () => {
   return await prisma.game.findMany({
     include: {
-      keys: {
+      _count: {
         select: {
-          id: true,
-          status: true
+          gameKeys: true
         }
       }
     }
@@ -57,69 +18,67 @@ export const getGameById = async (id) => {
   return await prisma.game.findUnique({
     where: { id: parseInt(id) },
     include: {
-      keys: {
+      _count: {
         select: {
-          id: true,
-          status: true
+          gameKeys: true
         }
       }
     }
   });
 };
 
+// Функция для создания новой игры
+export const createGame = async (data) => {
+  const { title, description, price, image } = data;
+
+  return await prisma.game.create({
+    data: {
+      title,
+      description,
+      price: parseFloat(price),
+      image,
+      totalCopies: 0,
+      availableCopies: 0
+    }
+  });
+};
+
 // Функция для обновления игры
-export const updateGame = async (id, gameData) => {
-  try {
-    const existingGame = await prisma.game.findUnique({
-      where: { id: parseInt(id) },
-      include: { keys: true }
-    });
+export const updateGame = async (id, data) => {
+  const { title, description, price, image } = data;
 
-    if (!existingGame) {
-      throw new Error('Game not found');
+  return await prisma.game.update({
+    where: { id: parseInt(id) },
+    data: {
+      title,
+      description,
+      price: price ? parseFloat(price) : undefined,
+      image
     }
-
-    const processedData = {
-      ...gameData,
-      price: parseFloat(gameData.price),
-      releaseYear: parseInt(gameData.releaseYear),
-      isDigital: gameData.isDigital === 'true',
-      totalCopies: parseInt(gameData.totalCopies) || 0,
-    };
-
-    // Если изменилось количество копий для цифровой игры
-    if (processedData.isDigital && processedData.totalCopies > existingGame.totalCopies) {
-      const currentKeys = existingGame.keys.length;
-      const newTotalCopies = processedData.totalCopies;
-      
-      if (newTotalCopies > currentKeys) {
-        const additionalKeys = Array(newTotalCopies - currentKeys).fill(null).map(() => ({
-          password: Math.random().toString(36).substring(2, 15),
-          status: 'available'
-        }));
-        
-        processedData.keys = {
-          create: additionalKeys
-        };
-      }
-    }
-
-    return await prisma.game.update({
-      where: { id: parseInt(id) },
-      data: processedData,
-      include: {
-        keys: true
-      }
-    });
-  } catch (error) {
-    console.error('Error in updateGame:', error);
-    throw error;
-  }
+  });
 };
 
 // Функция для удаления игры
 export const deleteGame = async (id) => {
-  return await prisma.game.delete({
-    where: { id: parseInt(id) }
+  // Проверяем, есть ли проданные ключи
+  const soldKeys = await prisma.gameKey.count({
+    where: {
+      gameId: parseInt(id),
+      status: 'sold'
+    }
   });
+
+  if (soldKeys > 0) {
+    throw new Error('Нельзя удалить игру с проданными ключами');
+  }
+
+  // Удаляем все ключи игры и саму игру в транзакции
+  return await prisma.$transaction([
+    prisma.gameKey.deleteMany({
+      where: { gameId: parseInt(id) }
+    }),
+    prisma.game.delete({
+      where: { id: parseInt(id) }
+    })
+  ]);
 };

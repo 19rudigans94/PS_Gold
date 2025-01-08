@@ -11,24 +11,18 @@ datasource db {
 }
 
 model Game {
-  id              Int           @id @default(autoincrement())
-  title           String
-  description     String?
-  price           Float
-  imageUrl        String?
-  genre           String
-  releaseYear     Int
-  ageRating       String
-  publisher       String
-  isDigital       Boolean       @default(false)
-  totalCopies     Int           @default(0)
-  availableCopies Int           @default(0)
-  inStock         Boolean       @default(true)
-  featured        Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  keys            GameKey[]
-  orders          OrderGame[]
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  price       Float
+  genre       String
+  platform    String
+  publisher   String
+  releaseDate DateTime
+  imageUrl    String
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model GameKey {

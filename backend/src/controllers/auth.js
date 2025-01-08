@@ -110,18 +110,15 @@ export const checkAuth = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
-    
-    const userData = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      boughtKeys: user.boughtKeys,
-      reservedKeys: user.reservedKeys,
-      orders: user.orders
-    };
 
-    res.json(userData);
+    res.json({ 
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    });
   } catch (error) {
     console.error('Ошибка при проверке аутентификации:', error);
     res.status(500).json({ message: 'Ошибка при проверке аутентификации' });

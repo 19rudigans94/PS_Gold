@@ -1,7 +1,7 @@
 import express from 'express';
 import { body } from 'express-validator';
 import { register, login, checkAuth } from '../controllers/auth.js';
-import { auth } from '../middleware/auth.js';
+import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -16,6 +16,6 @@ router.post('/login', [
   body('password').notEmpty().withMessage('Введите пароль')
 ], login);
 
-router.get('/check', auth, checkAuth);
+router.get('/check', protect, checkAuth);
 
 export default router;

@@ -1,39 +1,29 @@
-// Импорты библиотек
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { Provider } from 'react-redux';
-import { BrowserRouter, createBrowserRouter, RouterProvider } from 'react-router-dom';
-
-// Импорты компонентов и стилей
-import App from './App';
-import store from './store/store';
-import AuthCheck from './components/AuthCheck';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './routes/routes';
+import { store } from './store/store';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './index.css';
 
-// Функция для создания конфигурации роутера
-const createRouter = () =>
-  createBrowserRouter(
-    [
-      {
-        path: '/*',
-        element: (
-          <Provider store={store}>
-            <AuthCheck>
-              <App />
-            </AuthCheck>
-          </Provider>
-        ),
-      },
-    ],
-    {
-      future: {
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-      },
-    }
-  );
-
-// Создание и рендеринг приложения
 ReactDOM.createRoot(document.getElementById('root')).render(
-    <RouterProvider router={createRouter()} />
+  <React.StrictMode>
+    <Provider store={store}>
+      <RouterProvider router={router} />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+    </Provider>
+  </React.StrictMode>
 );

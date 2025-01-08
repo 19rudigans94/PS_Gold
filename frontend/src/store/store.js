@@ -1,30 +1,29 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import cartReducer from './slices/cartSlice';
-import productsReducer from './slices/productsSlice';
-import contactReducer from './slices/contactSlice';
-import orderReducer from './slices/orderSlice';
+import gamesReducer from './slices/gamesSlice';
+import ordersReducer from './slices/ordersSlice';
+import usersReducer from './slices/usersSlice';
 import settingsReducer from './slices/settingsSlice';
 
-const store = configureStore({
+export const store = configureStore({
   reducer: {
     auth: authReducer,
     cart: cartReducer,
-    products: productsReducer,
-    contact: contactReducer,
-    orders: orderReducer,
-    settings: settingsReducer,
+    games: gamesReducer,
+    orders: ordersReducer,
+    users: usersReducer,
+    settings: settingsReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Игнорируем определенные action types
-        ignoredActions: ['auth/checkStatus/fulfilled', 'auth/loginUser/fulfilled', 'auth/registerUser/fulfilled'],
-        // Игнорируем определенные пути в state
-        ignoredPaths: ['auth.user'],
+        ignoredActions: [
+          'auth/login/fulfilled',
+          'auth/register/fulfilled',
+          'auth/checkStatus/fulfilled'
+        ],
+        ignoredPaths: ['auth.user', 'auth.error']
       },
     }),
-  devTools: process.env.NODE_ENV !== 'production',
 });
-
-export default store;
