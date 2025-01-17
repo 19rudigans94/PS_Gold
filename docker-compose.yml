@@ -22,6 +22,11 @@ services:
     build: ./backend
     container_name: ps-gold-backend
     restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/prisma/dev.db
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_here}
+      - COOKIE_SECRET=${COOKIE_SECRET:-your_cookie_secret_here}
     expose:
       - "3000"
     volumes:
