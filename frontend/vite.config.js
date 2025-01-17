@@ -15,10 +15,28 @@ export default defineConfig({
       '@store': path.resolve(__dirname, './src/store')
     }
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      }
+    },
+    cors: true,
+    hmr: {
+      overlay: true
+    }
+  },
   optimizeDeps: {
     include: [
       'react',
       'react-dom',
+      'react-router-dom',
+      '@reduxjs/toolkit',
+      'react-redux',
+      'axios',
       'js-cookie',
       'lucide-react',
       'chart.js',
@@ -27,6 +45,8 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
+    outDir: 'dist',
+    sourcemap: true,
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true
@@ -34,24 +54,13 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          utils: ['axios', '@reduxjs/toolkit', 'react-redux'],
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'redux-vendor': ['react-redux', '@reduxjs/toolkit'],
           'ui-vendor': ['lucide-react', 'chart.js', 'react-chartjs-2']
         }
       }
-    }
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/api/, '')
-      }
-    },
-    hmr: {
-      overlay: true
     }
   }
 });

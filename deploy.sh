@@ -48,6 +48,10 @@ if [ ! -f .env ]; then
     echo "COOKIE_SECRET=$(openssl rand -hex 32)" >> .env
 fi
 
+# Копирование .env.production в .env для бэкенда
+echo "Setting up environment variables..."
+cp backend/.env.production backend/.env
+
 # Генерация SSL-сертификатов (если нужно)
 if [ ! -f nginx/ssl/ps-gold.kz.crt ]; then
     echo "Generating self-signed SSL certificate..."
@@ -61,7 +65,15 @@ fi
 echo "Setting correct permissions..."
 chmod -R 755 .
 chmod 600 .env
+chmod 600 backend/.env
 chmod 600 nginx/ssl/*
+
+# Сборка фронтенда
+echo "Building frontend..."
+cd frontend
+npm install
+npm run build
+cd ..
 
 # Копирование конфигурации Nginx
 sudo cp nginx/nginx.conf /etc/nginx/nginx.conf
@@ -74,5 +86,9 @@ docker-compose up -d --build
 # Проверка статуса контейнеров
 echo "Checking container status..."
 docker-compose ps
+
+# Применение миграций к базе данных
+echo "Applying database migrations..."
+docker-compose exec backend npx prisma migrate deploy
 
 echo "Deployment completed!"
