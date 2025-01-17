@@ -15,9 +15,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 200M
+          memory: 128M
         reservations:
-          memory: 100M
+          memory: 64M
 
   backend:
     build: ./backend
@@ -35,9 +35,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 300M
+          memory: 256M
         reservations:
-          memory: 150M
+          memory: 128M
 
 volumes:
   mongodb_data:
