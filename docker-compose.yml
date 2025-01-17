@@ -7,6 +7,12 @@ services:
       - "80:80"
     depends_on:
       - backend
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   backend:
     build: ./backend
@@ -21,6 +27,12 @@ services:
       - "3000:3000"
     depends_on:
       - mongodb
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+        reservations:
+          memory: 150M
 
   mongodb:
     image: mongo:latest
@@ -30,6 +42,12 @@ services:
       - mongodb_data:/data/db
     ports:
       - "27017:27017"
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+        reservations:
+          memory: 200M
 
 volumes:
   mongodb_data:
