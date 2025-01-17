@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# Создаем временный swap-файл для сборки
+echo "Setting up temporary swap file..."
+sudo swapoff -a
+sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
 echo "Stopping containers..."
 docker-compose down
 
@@ -23,5 +31,10 @@ docker-compose up -d --build
 echo "Cleaning up..."
 docker system prune -f
 docker builder prune -f
+
+# Удаляем временный swap-файл
+echo "Removing temporary swap file..."
+sudo swapoff /swapfile
+sudo rm /swapfile
 
 echo "Done! Check the logs with: docker-compose logs -f"
