@@ -1,2 +1,6 @@
 # Dependencies
 node_modules/
+dist.tar.gz
+.env
+*.log
+.DS_Store
