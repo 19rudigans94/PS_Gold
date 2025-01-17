@@ -15,7 +15,7 @@ ssh user@185.4.180.115
 
 2. Клонируйте репозиторий:
 ```bash
-git clone [ваш-репозиторий] /opt/ps-gold
+git clone https://github.com/19rudigans94/PS_Gold.git /opt/ps-gold
 cd /opt/ps-gold
 ```
 
