@@ -20,34 +20,19 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongodb:27017/ps-gold
+      - DATABASE_URL=file:/app/prisma/dev.db
       - JWT_SECRET=your_jwt_secret_here
       - COOKIE_SECRET=your_cookie_secret_here
     ports:
       - "3000:3000"
-    depends_on:
-      - mongodb
+    volumes:
+      - ./backend/prisma:/app/prisma
     deploy:
       resources:
         limits:
           memory: 300M
         reservations:
           memory: 150M
-
-  mongodb:
-    image: mongo:latest
-    container_name: ps-gold-mongodb
-    restart: always
-    volumes:
-      - mongodb_data:/data/db
-    ports:
-      - "27017:27017"
-    deploy:
-      resources:
-        limits:
-          memory: 400M
-        reservations:
-          memory: 200M
 
 volumes:
   mongodb_data:

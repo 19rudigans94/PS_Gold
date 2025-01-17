@@ -1,0 +1,1 @@
+import{j as t,L as n}from"./index-Bm_OlzcE.js";import{d as u,N as c}from"./react-vendor-CUI16jnX.js";import{b as m}from"./redux-vendor-D3UFojRl.js";const l=({children:o})=>{const e=u(),{isAuthenticated:i,isLoading:r,initialized:a}=m(s=>s.auth);return!a||r?t.jsx(n,{}):i?o:t.jsx(c,{to:"/login",state:{from:e},replace:!0})};export{l as default};
