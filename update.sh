@@ -15,6 +15,11 @@ echo "Cleaning up before build..."
 docker system prune -f
 docker builder prune -f
 
+# Очищаем node_modules для чистой установки
+echo "Cleaning node_modules..."
+rm -rf frontend/node_modules
+rm -rf frontend/dist
+
 echo "Building frontend..."
 cd frontend
 # Оптимизируем память для локальной сборки
@@ -25,8 +30,9 @@ npm ci
 npm run build
 cd ..
 
-echo "Rebuilding and starting containers..."
-docker-compose up -d --build
+echo "Building and starting containers..."
+# Увеличиваем время ожидания для сборки
+COMPOSE_HTTP_TIMEOUT=300 docker-compose up -d --build
 
 echo "Cleaning up..."
 docker system prune -f
