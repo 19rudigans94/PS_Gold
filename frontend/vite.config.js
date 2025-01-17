@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { splitVendorChunkPlugin } from 'vite';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), splitVendorChunkPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -14,6 +15,27 @@ export default defineConfig({
       '@hooks': path.resolve(__dirname, './src/hooks'),
       '@store': path.resolve(__dirname, './src/store')
     }
+  },
+  build: {
+    target: 'es2015',
+    minify: 'esbuild',
+    cssMinify: 'lightningcss',
+    sourcemap: true,
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'redux-vendor': ['@reduxjs/toolkit', 'react-redux'],
+          'ui-vendor': ['lucide-react', 'chart.js', 'react-chartjs-2'],
+          vendor: ['axios', 'js-cookie']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000,
   },
   server: {
     proxy: {
@@ -42,25 +64,5 @@ export default defineConfig({
       'chart.js',
       'react-chartjs-2'
     ]
-  },
-  build: {
-    target: 'es2020',
-    outDir: 'dist',
-    sourcemap: true,
-    commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          utils: ['axios', '@reduxjs/toolkit', 'react-redux'],
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'redux-vendor': ['react-redux', '@reduxjs/toolkit'],
-          'ui-vendor': ['lucide-react', 'chart.js', 'react-chartjs-2']
-        }
-      }
-    }
   }
 });

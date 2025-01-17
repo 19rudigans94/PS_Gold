@@ -7,8 +7,10 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 COPY package*.json ./
-# Устанавливаем только production зависимости
-RUN npm ci --only=production
+
+# Устанавливаем все зависимости, включая devDependencies для сборки
+RUN npm ci
+
 COPY . .
 RUN npm run build
 

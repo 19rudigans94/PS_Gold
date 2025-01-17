@@ -12,8 +12,8 @@ cd frontend
 # Оптимизируем память для локальной сборки
 export NODE_OPTIONS="--max-old-space-size=512"
 export NODE_ENV=production
-# Используем clean install только для production зависимостей
-npm ci --only=production
+# Устанавливаем все зависимости, включая dev-зависимости для сборки
+npm ci
 npm run build
 cd ..
 
