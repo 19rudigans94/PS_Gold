@@ -23,18 +23,28 @@ const cartSlice = createSlice({
       state.items.push({
         ...newItem,
         quantity: 1,
-        totalPrice: newItem.price * (1 - (newItem.discount || 0) / 100)
+        total: newItem.price
       });
-      
+
       state.totalQuantity++;
-      state.totalAmount = state.items.reduce(
-        (total, item) => total + item.totalPrice,
-        0
-      );
+      state.totalAmount += newItem.price;
 
       toast.success('Игра добавлена в корзину');
     },
-
+    updateQuantity: (state, action) => {
+      const { id, quantity } = action.payload;
+      const item = state.items.find(item => item.id === id);
+      
+      if (item) {
+        const quantityDiff = quantity - item.quantity;
+        item.quantity = quantity;
+        item.total = item.price * quantity;
+        state.totalQuantity += quantityDiff;
+        state.totalAmount += item.price * quantityDiff;
+        
+        toast.success('Количество обновлено');
+      }
+    },
     removeFromCart: (state, action) => {
       const id = action.payload;
       const existingItem = state.items.find(item => item.id === id);
@@ -46,7 +56,7 @@ const cartSlice = createSlice({
       state.items = state.items.filter(item => item.id !== id);
       state.totalQuantity--;
       state.totalAmount = state.items.reduce(
-        (total, item) => total + item.totalPrice,
+        (total, item) => total + item.total,
         0
       );
 
@@ -63,5 +73,5 @@ const cartSlice = createSlice({
   },
 });
 
-export const { addToCart, removeFromCart, clearCart } = cartSlice.actions;
+export const { addToCart, removeFromCart, clearCart, updateQuantity } = cartSlice.actions;
 export default cartSlice.reducer;

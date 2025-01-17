@@ -29,6 +29,15 @@ const Catalog = () => {
     handleDelete
   } = useCatalog();
 
+  // Логи для отладки
+  console.log('Loading state:', loading);
+  console.log('Games:', games);
+  console.log('Open Dialog:', openDialog);
+  console.log('Selected Game:', selectedGame);
+  console.log('Form Data:', formData);
+  console.log('Form Data:', typeof formData.price);
+
+
   if (loading) {
     return <LoadingSpinner />;
   }

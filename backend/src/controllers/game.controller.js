@@ -1,7 +1,6 @@
 import { BaseController } from './base.controller.js';
 import { AppError } from '../middleware/error.middleware.js';
 import { handleFileUpload, removeFile } from '../utils/crud.utils.js';
-import { UPLOAD_DIRS } from '../config/constants.js';
 import prisma from '../lib/prisma.js';
 
 class GameController extends BaseController {
@@ -24,12 +23,12 @@ class GameController extends BaseController {
 
   async create(data, file) {
     try {
-      const imageUrl = await handleFileUpload(file, UPLOAD_DIRS.GAMES);
-      
+      console.log('Received data:', data);
+      console.log('Create method called');
       return await super.create({
         ...data,
         price: parseFloat(data.price),
-        imageUrl,
+        imageUrl: data.imageUrl,
         status: data.status || 'active'
       });
     } catch (error) {
@@ -42,11 +41,12 @@ class GameController extends BaseController {
 
   async update(id, data, file) {
     try {
+      console.log('Received data:', data);
+      console.log('Update method called');
       const game = await this.getById(id);
       
       let imageUrl = undefined;
       if (file) {
-        imageUrl = await handleFileUpload(file, UPLOAD_DIRS.GAMES);
         if (game.imageUrl) {
           await removeFile(game.imageUrl);
         }
@@ -109,7 +109,16 @@ class GameController extends BaseController {
 
   handleCreate = async (req, res, next) => {
     try {
+      console.log('Create method called with data:', req.body);
+      console.log('Received data:', req.body);
       const game = await this.create(req.body, req.file);
+      console.log('Created game data:', game);
+      console.log('Create method called with data:', req.body);
+      console.log('Received data:', req.body);
+      console.log('Created game data:', game);
+      console.log('Create method called with data:', req.body);
+      console.log('Received data:', req.body);
+      console.log('Created game data:', game);
       res.status(201).json({ 
         success: true, 
         data: game,
@@ -122,7 +131,14 @@ class GameController extends BaseController {
 
   handleUpdate = async (req, res, next) => {
     try {
+      console.log('Update method called with data:', req.body);
+      console.log('Received data:', req.body);
       const game = await this.update(req.params.id, req.body, req.file);
+      console.log('Updated game data:', game);
+      console.log('Update method called with data:', req.body);
+      console.log('Updated game data:', game);
+      console.log('Update method called with data:', req.body);
+      console.log('Updated game data:', game);
       res.json({ 
         success: true, 
         data: game,

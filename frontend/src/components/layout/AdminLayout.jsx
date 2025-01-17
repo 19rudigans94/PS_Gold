@@ -13,7 +13,6 @@ import {
 } from '@mui/icons-material';
 import { ResponsiveDrawer, DRAWER_WIDTH } from '../common/ResponsiveDrawer';
 import { NavigationMenu } from '../common/NavigationMenu';
-import { PageHeader } from '../common/PageHeader';
 
 function AdminLayout() {
   const location = useLocation();
@@ -49,15 +48,6 @@ function AdminLayout() {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <PageHeader
-        title="Админ панель"
-        onMenuClick={handleDrawerToggle}
-        sx={{
-          display: { md: 'none' },
-          width: '100%'
-        }}
-      />
-
       <ResponsiveDrawer
         mobileOpen={mobileOpen}
         handleDrawerToggle={handleDrawerToggle}
@@ -70,9 +60,8 @@ function AdminLayout() {
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          mt: { xs: 7, md: 0 },
-          backgroundColor: 'background.default'
+          width: '100%',
+          mt: { xs: 7, md: 7 }
         }}
       >
         <Suspense fallback={<LoadingSpinner />}>

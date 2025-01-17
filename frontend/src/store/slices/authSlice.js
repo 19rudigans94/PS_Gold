@@ -11,6 +11,30 @@ const initialState = {
   error: null
 };
 
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (userData, { rejectWithValue }) => {
+    try {
+      const response = await api.put('/users/profile', userData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Ошибка обновления профиля');
+    }
+  }
+);
+
+export const registerUser = createAsyncThunk(
+  'auth/register',
+  async (userData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/auth/register', userData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Ошибка регистрации');
+    }
+  }
+);
+
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
@@ -60,6 +84,27 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Register
+      .addCase(registerUser.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(registerUser.fulfilled, (state, action) => {
+        if (action.payload.success) {
+          state.isLoading = false;
+          state.error = null;
+          toast.success('Успешная регистрация');
+        } else {
+          state.isLoading = false;
+          state.error = action.payload.message || 'Неизвестная ошибка';
+          toast.error(state.error);
+        }
+      })
+      .addCase(registerUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+        toast.error(action.payload);
+      })
       // Login
       .addCase(login.pending, (state) => {
         state.isLoading = true;
@@ -126,6 +171,28 @@ const authSlice = createSlice({
         state.user = null;
         state.isAdmin = false;
         state.error = action.payload;
+      })
+      // Update Profile
+      .addCase(updateProfile.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        if (action.payload.success) {
+          state.isLoading = false;
+          state.error = null;
+          state.user = action.payload.data.user;
+          toast.success('Успешное обновление профиля');
+        } else {
+          state.isLoading = false;
+          state.error = action.payload.message || 'Неизвестная ошибка';
+          toast.error(state.error);
+        }
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+        toast.error(action.payload);
       });
   }
 });

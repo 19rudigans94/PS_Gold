@@ -19,10 +19,6 @@ export default defineConfig({
     include: [
       'react',
       'react-dom',
-      'react-router-dom',
-      'react-redux',
-      '@reduxjs/toolkit',
-      'axios',
       'js-cookie',
       'lucide-react',
       'chart.js',
@@ -30,6 +26,11 @@ export default defineConfig({
     ]
   },
   build: {
+    target: 'es2020',
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true
+    },
     rollupOptions: {
       output: {
         manualChunks: {

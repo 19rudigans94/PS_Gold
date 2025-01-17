@@ -2,7 +2,6 @@ import { BaseController } from './base.controller.js';
 import { AppError } from '../middleware/error.middleware.js';
 import bcrypt from 'bcryptjs';
 import { handleFileUpload, removeFile } from '../utils/crud.utils.js';
-import { UPLOAD_DIRS } from '../config/constants.js';
 
 class UserController extends BaseController {
   constructor() {

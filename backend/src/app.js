@@ -17,9 +17,6 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Статические файлы
-app.use('/uploads', express.static('uploads'));
-
 // Все маршруты API
 app.use(routes);
 

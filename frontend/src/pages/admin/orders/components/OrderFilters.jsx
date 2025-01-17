@@ -11,7 +11,7 @@ import {
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import ruLocale from 'date-fns/locale/ru';
+import { ru } from 'date-fns/locale';
 
 export const OrderFilters = ({
   searchTerm,
@@ -49,7 +49,7 @@ export const OrderFilters = ({
           </FormControl>
         </Grid>
         <Grid item xs={12} sm={3}>
-          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ruLocale}>
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
             <DatePicker
               label="Начальная дата"
               value={dateRange.start ? new Date(dateRange.start) : null}
@@ -62,7 +62,7 @@ export const OrderFilters = ({
           </LocalizationProvider>
         </Grid>
         <Grid item xs={12} sm={3}>
-          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ruLocale}>
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
             <DatePicker
               label="Конечная дата"
               value={dateRange.end ? new Date(dateRange.end) : null}

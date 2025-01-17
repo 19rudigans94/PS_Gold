@@ -2,9 +2,10 @@ import React from 'react';
 import {
   Box,
   Drawer,
-  useTheme,
-  useMediaQuery
+  IconButton,
+  useTheme
 } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
 
 const drawerWidth = 240;
 
@@ -15,52 +16,50 @@ export function ResponsiveDrawer({
   drawerProps = {} 
 }) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   return (
-    <Box
-      component="nav"
-      sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
-    >
-      {/* Mobile drawer */}
+    <>
+      <IconButton
+        color="inherit"
+        aria-label="open drawer"
+        edge="start"
+        onClick={handleDrawerToggle}
+        sx={{
+          position: 'fixed',
+          right: 16,
+          top: 16,
+          zIndex: theme.zIndex.drawer + 2,
+          bgcolor: 'background.paper',
+          boxShadow: 1,
+          '&:hover': {
+            bgcolor: 'background.paper',
+          },
+        }}
+      >
+        <MenuIcon />
+      </IconButton>
+
       <Drawer
         variant="temporary"
+        anchor="right"
         open={mobileOpen}
         onClose={handleDrawerToggle}
         ModalProps={{
-          keepMounted: true // Better open performance on mobile
+          keepMounted: true
         }}
         sx={{
-          display: { xs: 'block', md: 'none' },
           '& .MuiDrawer-paper': { 
             boxSizing: 'border-box', 
             width: drawerWidth,
             backgroundColor: 'background.paper',
+            borderLeft: '1px solid rgba(0, 0, 0, 0.12)',
             ...drawerProps.sx
           }
         }}
       >
         {children}
       </Drawer>
-
-      {/* Desktop drawer */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          display: { xs: 'none', md: 'block' },
-          '& .MuiDrawer-paper': { 
-            boxSizing: 'border-box', 
-            width: drawerWidth,
-            backgroundColor: 'background.paper',
-            borderRight: '1px solid rgba(0, 0, 0, 0.12)',
-            ...drawerProps.sx
-          }
-        }}
-        open
-      >
-        {children}
-      </Drawer>
-    </Box>
+    </>
   );
 }
 

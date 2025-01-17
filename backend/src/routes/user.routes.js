@@ -1,7 +1,6 @@
 import express from 'express';
 import { protect, admin } from '../middleware/auth.middleware.js';
 import { validate, userValidation, validateId } from '../middleware/validation.middleware.js';
-import { uploadAvatar } from '../middleware/upload.middleware.js';
 import {
   getAllUsers,
   getUserById,
@@ -15,7 +14,7 @@ const router = express.Router();
 
 // Публичные маршруты
 router.get('/profile', protect, getProfile);
-router.put('/profile', protect, uploadAvatar, updateProfile);
+router.put('/profile', protect, updateProfile);
 
 // Маршруты администратора
 router.get('/', protect, admin, getAllUsers);

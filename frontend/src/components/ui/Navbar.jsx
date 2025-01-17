@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../store/slices/authSlice";
 import { toast } from "react-toastify";
@@ -20,16 +20,27 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
+  ListItemIcon,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Badge,
+  Divider
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import HomeIcon from "@mui/icons-material/Home";
+import SportsEsportsIcon from "@mui/icons-material/SportsEsports";
+import ContactSupportIcon from "@mui/icons-material/ContactSupport";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import PersonIcon from "@mui/icons-material/Person";
+import LogoutIcon from "@mui/icons-material/Logout";
 import { Logo } from "./Logo";
 
 export function Navbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const [anchorElNav, setAnchorElNav] = useState(null);
@@ -68,25 +79,30 @@ export function Navbar() {
   };
 
   const navItems = [
-    { label: 'Главная', path: '/' },
-    { label: 'Игры', path: '/games' },
-    { label: 'Контакты', path: '/contact' }
+    { label: 'Главная', path: '/', icon: <HomeIcon /> },
+    { label: 'Игры', path: '/games', icon: <SportsEsportsIcon /> },
+    { label: 'Контакты', path: '/contact', icon: <ContactSupportIcon /> },
+    ...(user ? [{ 
+      label: 'Корзина', 
+      path: '/cart', 
+      icon: <Badge badgeContent={0} color="error"><ShoppingCartIcon /></Badge> 
+    }] : [])
   ];
 
-  const adminItems = user && user.role && user.role.toLowerCase() === 'admin' ? [
-    { label: 'Админ панель', path: '/admin/dashboard' }
-  ] : [];
-
-  const userMenuItems = user ? [
-    { label: 'Профиль', path: '/profile' },
-    { label: 'Корзина', path: '/cart' },
-    { label: 'Мои заказы', path: '/orders' }
-  ] : [];
+  const userMenuItems = [
+    { label: 'Профиль', path: '/profile', icon: <PersonIcon /> },
+    { label: 'Мои заказы', path: '/orders', icon: <ShoppingCartIcon /> },
+    ...(user?.role?.toLowerCase() === 'admin' ? [
+      { label: 'Админ панель', path: '/admin/dashboard', icon: <DashboardIcon /> }
+    ] : [])
+  ];
 
   const drawer = (
     <Box onClick={handleDrawerToggle} sx={{ textAlign: 'center' }}>
       <Box sx={{ my: 2 }}>
-        <Logo />
+        <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Logo />
+        </Link>
       </Box>
       <List>
         {navItems.map((item) => (
@@ -94,20 +110,22 @@ export function Navbar() {
             <ListItemButton
               component={Link}
               to={item.path}
-              sx={{ textAlign: 'center' }}
+              selected={location.pathname === item.path}
+              sx={{
+                textAlign: 'left',
+                '&.Mui-selected': {
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'primary.dark',
+                  },
+                },
+              }}
             >
-              <ListItemText primary={String(item.label)} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-        {adminItems.map((item) => (
-          <ListItem key={item.path} disablePadding>
-            <ListItemButton
-              component={Link}
-              to={item.path}
-              sx={{ textAlign: 'center' }}
-            >
-              <ListItemText primary={String(item.label)} />
+              <ListItemIcon sx={{ color: location.pathname === item.path ? 'white' : 'inherit' }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.label} />
             </ListItemButton>
           </ListItem>
         ))}
@@ -116,7 +134,7 @@ export function Navbar() {
   );
 
   return (
-    <AppBar position="static">
+    <AppBar position="sticky" elevation={1} sx={{ bgcolor: 'background.paper', color: 'text.primary' }}>
       <Container maxWidth="xl">
         <Toolbar disableGutters>
           {/* Desktop Logo */}
@@ -143,11 +161,15 @@ export function Navbar() {
               open={mobileOpen}
               onClose={handleDrawerToggle}
               ModalProps={{
-                keepMounted: true // Better open performance on mobile.
+                keepMounted: true
               }}
               sx={{
                 display: { xs: 'block', md: 'none' },
-                '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 240 },
+                '& .MuiDrawer-paper': { 
+                  boxSizing: 'border-box', 
+                  width: 240,
+                  bgcolor: 'background.paper',
+                },
               }}
             >
               {drawer}
@@ -168,30 +190,35 @@ export function Navbar() {
                 key={item.path}
                 component={Link}
                 to={item.path}
-                sx={{ my: 2, color: 'white', display: 'block', mx: 1 }}
+                startIcon={item.icon}
+                sx={{
+                  my: 2,
+                  mx: 1,
+                  color: location.pathname === item.path ? 'primary.main' : 'text.primary',
+                  backgroundColor: location.pathname === item.path ? 'action.selected' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
+                }}
               >
-                {String(item.label)}
-              </Button>
-            ))}
-            {adminItems.map((item) => (
-              <Button
-                key={item.path}
-                component={Link}
-                to={item.path}
-                sx={{ my: 2, color: 'white', display: 'block', mx: 1 }}
-              >
-                {String(item.label)}
+                {item.label}
               </Button>
             ))}
           </Box>
 
           {/* User Menu */}
-          <Box sx={{ flexGrow: 0 }}>
-            {user && user.name && user.avatar ? (
+          <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
+            {user ? (
               <>
-                <Tooltip title="Открыть меню">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar alt={user.name} src={user.avatar} />
+                <Tooltip title="Меню пользователя">
+                  <IconButton onClick={handleOpenUserMenu}>
+                    <Avatar 
+                      alt={user.name} 
+                      src={user.avatar}
+                      sx={{ width: 40, height: 40 }}
+                    >
+                      {!user.avatar && user.name ? user.name[0].toUpperCase() : <PersonIcon />}
+                    </Avatar>
                   </IconButton>
                 </Tooltip>
                 <Menu
@@ -216,34 +243,44 @@ export function Navbar() {
                       component={Link}
                       to={item.path}
                       onClick={handleCloseUserMenu}
+                      selected={location.pathname === item.path}
                     >
-                      <Typography textAlign="center">{String(item.label)}</Typography>
+                      <ListItemIcon>
+                        {item.icon}
+                      </ListItemIcon>
+                      <Typography>{item.label}</Typography>
                     </MenuItem>
                   ))}
+                  <Divider />
                   <MenuItem onClick={handleLogout}>
-                    <Typography textAlign="center">Выйти</Typography>
+                    <ListItemIcon>
+                      <LogoutIcon />
+                    </ListItemIcon>
+                    <Typography>Выйти</Typography>
                   </MenuItem>
                 </Menu>
               </>
             ) : (
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <>
                 <Button
                   component={Link}
                   to="/login"
-                  variant="contained"
-                  color="secondary"
+                  variant="outlined"
+                  color="primary"
+                  size="small"
                 >
                   Войти
                 </Button>
                 <Button
                   component={Link}
                   to="/register"
-                  variant="outlined"
-                  color="inherit"
+                  variant="contained"
+                  color="primary"
+                  size="small"
                 >
                   Регистрация
                 </Button>
-              </Box>
+              </>
             )}
           </Box>
         </Toolbar>

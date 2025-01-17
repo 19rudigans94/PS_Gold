@@ -2,6 +2,7 @@ import { body, param, validationResult } from 'express-validator';
 
 export const validate = (validations) => {
   return async (req, res, next) => {
+    console.log('Validation middleware called for:', req.method, req.path);
     await Promise.all(validations.map(validation => validation.run(req)));
 
     const errors = validationResult(req);
@@ -11,6 +12,8 @@ export const validate = (validations) => {
         errors: errors.array() 
       });
     }
+    console.log('Validation middleware passed for:', req.method, req.path);
+    console.log('Request reached controller:', req.method, req.path);
     next();
   };
 };
@@ -22,7 +25,6 @@ export const gameValidation = [
   body('description').optional().trim(),
   body('genre').notEmpty().withMessage('Жанр обязателен'),
   body('platform').notEmpty().withMessage('Платформа обязательна'),
-  body('releaseDate').optional().isISO8601().withMessage('Некорректная дата выпуска'),
   body('publisher').notEmpty().withMessage('Издатель обязателен'),
   body('status').optional().isIn(['active', 'inactive']).withMessage('Некорректный статус')
 ];

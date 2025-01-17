@@ -24,13 +24,30 @@ api.interceptors.request.use(
 // Интерцептор для обработки ответов
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  (error) => {
     if (error.response?.status === 401) {
-      // При получении 401 ошибки, перенаправляем на страницу логина
+      // Обработка неавторизованного доступа
       window.location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
+
+export const productsAPI = {
+  getAll: () => api.get('/products'),
+  getById: (id) => api.get(`/products/${id}`),
+  create: (data) => api.post('/products', data),
+  update: (id, data) => api.put(`/products/${id}`, data),
+  delete: (id) => api.delete(`/products/${id}`)
+};
+
+export const gameKeysAPI = {
+  getAll: () => api.get('/game-keys'),
+  getById: (id) => api.get(`/game-keys/${id}`),
+  create: (data) => api.post('/game-keys', data),
+  update: (id, data) => api.put(`/game-keys/${id}`, data),
+  delete: (id) => api.delete(`/game-keys/${id}`),
+  toggleVisibility: (id) => api.patch(`/game-keys/${id}/toggle-visibility`)
+};
 
 export default api;

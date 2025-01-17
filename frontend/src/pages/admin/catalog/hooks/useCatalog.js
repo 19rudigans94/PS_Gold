@@ -22,10 +22,12 @@ export const useCatalog = () => {
   });
 
   const fetchGames = async () => {
+    console.log('Fetching games...');
     try {
       setLoading(true);
       setError(null);
       const response = await api.get('/games');
+      console.log('Response:', response.data);
       if (response.data.success) {
         setGames(response.data.data || []);
       } else {
@@ -47,15 +49,19 @@ export const useCatalog = () => {
   }, []);
 
   const handleChangePage = (event, newPage) => {
+    console.log('Changing page to:', newPage);
     setPage(newPage);
   };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    console.log('Changing rows per page to:', newRowsPerPage);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
   };
 
   const handleOpenDialog = (game = null) => {
+    console.log('Opening dialog for game:', game);
     if (game) {
       setFormData({
         title: game.title || '',
@@ -85,6 +91,7 @@ export const useCatalog = () => {
   };
 
   const handleCloseDialog = () => {
+    console.log('Closing dialog');
     setOpenDialog(false);
     setSelectedGame(null);
     setFormData({
@@ -101,46 +108,64 @@ export const useCatalog = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    console.log(`Changing input ${name} to:`, value);
     setFormData(prev => ({
       ...prev,
       [name]: value
+
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+  
+    console.log('Submitting form with data:', formData);
+    console.log('Form Data before submission:', formData);
+    console.log('Values of all form fields before submission:');
+    Object.keys(formData).forEach(key => {
+      console.log(`${key}: ${formData[key]}`);
+    });
+    console.log('Client-side logging: Checking data to be sent to server...');
+    console.log('Data to be sent:', formData);
+  
+    // Преобразование `price` в число
+    const parsedPrice = parseFloat(formData.price);
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      const errorMessage = 'Цена должна быть положительным числом';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.log('Error:', errorMessage);
+      return;
+    }
+  
     try {
       setLoading(true);
       setError(null);
-
-      const formDataToSend = new FormData();
-      
-      // Добавляем все поля из formData в FormData
-      Object.keys(formData).forEach(key => {
-        // Пропускаем пустые значения
-        if (formData[key] !== '') {
-          // Для числовых полей преобразуем в строку
-          if (key === 'price') {
-            formDataToSend.append(key, parseFloat(formData[key]).toString());
-          } else {
-            formDataToSend.append(key, formData[key]);
-          }
-        }
+  
+      const formDataToSend = {
+        ...formData,
+        price: parseFloat(formData.price), // Преобразование в число
+      };
+  
+      console.log('FormData to send:', formDataToSend);
+      console.log('Submitting form with data:', formDataToSend);
+      console.log('Form Data before submission:', formData);
+      console.log('Client-side logging: Checking data to be sent to server...');
+      console.log('Values of all form fields before submission:');
+      Object.keys(formDataToSend).forEach(key => {
+        console.log(`${key}: ${formDataToSend[key]}`);
       });
-
+      console.log('Data to be sent:', formDataToSend);
+  
       if (selectedGame) {
-        await api.put(`/games/${selectedGame.id}`, formDataToSend, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        await api.put(`/games/${selectedGame.id}`, formDataToSend);
         toast.success('Игра успешно обновлена');
+        fetchGames(); // Повторная загрузка данных игр после обновления
       } else {
-        await api.post('/games', formDataToSend, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        await api.post('/games', formDataToSend);
         toast.success('Игра успешно создана');
       }
-
+  
       handleCloseDialog();
       fetchGames();
     } catch (error) {
@@ -159,6 +184,7 @@ export const useCatalog = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Вы уверены, что хотите удалить эту игру?')) {
       try {
+        console.log('Deleting game with ID:', id);
         await api.delete(`/games/${id}`);
         toast.success('Игра успешно удалена');
         fetchGames();

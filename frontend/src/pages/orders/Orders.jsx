@@ -1,7 +1,7 @@
 import React from 'react';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import OrdersList from './components/OrdersList';
-import { useOrders } from './hooks/useOrders';
+import { useOrders } from './hooks/useOrders.jsx';
 
 const Orders = () => {
   const { orders, isLoading, formatDate, getStatusBadge } = useOrders();
