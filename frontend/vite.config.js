@@ -14,34 +14,24 @@ export default defineConfig({
     }
   },
   build: {
-    // Отключаем source maps для уменьшения потребления памяти
     sourcemap: false,
-    // Используем более легкую минификацию
-    minify: 'esbuild',
-    // Отключаем модульное разделение для экономии памяти
-    modulePreload: false,
-    // Настраиваем Rollup для экономии памяти
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'react-vendor';
-            if (id.includes('@mui')) return 'mui-vendor';
-            if (id.includes('redux')) return 'redux-vendor';
-            return 'vendor';
-          }
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'redux-vendor': ['@reduxjs/toolkit', 'react-redux'],
+          'ui-vendor': ['@mui/material', '@mui/icons-material'],
+          'utils': ['axios']
         }
       }
-    },
-    // Увеличиваем лимит предупреждений о размере чанков
-    chunkSizeWarningLimit: 1000,
+    }
   },
   server: {
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
-      },
-    },
+      }
+    }
   }
 });
