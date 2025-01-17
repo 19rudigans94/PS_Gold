@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const BASE_URL = '/api';
+// Используем тот же протокол, что и текущая страница
+const BASE_URL = `${window.location.protocol}//${window.location.host}/api`;
+
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
