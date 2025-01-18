@@ -1,16 +1,24 @@
 import React, { Suspense, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { RouterProvider } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useSelector, useDispatch } from 'react-redux';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
-import { checkAuthStatus, setInitialized } from './store/slices/authSlice';
+import { checkAuthStatus, setInitialized, logout } from './store/slices/authSlice';
+import { TokenRefresher } from './components/auth/TokenRefresher';
+import { router } from './routes/routes';
+import { setLogoutCallback } from './services/api';
 
 function App() {
   const dispatch = useDispatch();
   const { initialized } = useSelector((state) => state.auth);
 
   useEffect(() => {
+    // Устанавливаем callback для выхода
+    setLogoutCallback(() => {
+      dispatch(logout());
+    });
+
     const initializeAuth = async () => {
       try {
         // Проверяем статус авторизации при загрузке приложения
@@ -31,12 +39,13 @@ function App() {
 
   return (
     <>
+      <TokenRefresher />
       <Suspense fallback={<LoadingSpinner />}>
-        <Outlet />
+        <RouterProvider router={router} />
       </Suspense>
       <ToastContainer
         position="top-right"
-        autoClose={5000}
+        autoClose={3000}
         hideProgressBar={false}
         newestOnTop
         closeOnClick
@@ -44,6 +53,7 @@ function App() {
         pauseOnFocusLoss
         draggable
         pauseOnHover
+        theme="light"
       />
     </>
   );

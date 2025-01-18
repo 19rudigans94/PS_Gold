@@ -39,10 +39,34 @@ export const getAllUsers = async () => {
   });
 };
 
-// Функция для получения пользователя по email
+// Функция для получения пользователя по email для аутентификации
 export const getUserByEmail = async (email) => {
   try {
     console.log('Поиск пользователя по email:', email);
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        password: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    console.log('Результат поиска:', user ? 'Пользователь найден' : 'Пользователь не найден');
+    return user;
+  } catch (error) {
+    console.error('Ошибка при поиске пользователя:', error);
+    throw error;
+  }
+};
+
+// Функция для получения пользователя по email с полными данными
+export const getUserByEmailWithDetails = async (email) => {
+  try {
+    console.log('Поиск пользователя по email с деталями:', email);
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
@@ -79,14 +103,9 @@ export const getUserByEmail = async (email) => {
 // Функция для получения пользователя по ID с заказами
 export const getUserById = async (id) => {
   try {
-    const userId = parseInt(id);
-    if (isNaN(userId)) {
-      throw new Error('Некорректный ID пользователя');
-    }
-    
-    console.log('Поиск пользователя по ID:', userId);
+    console.log('Поиск пользователя по ID:', id);
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id },
       include: {
         orders: {
           include: {
@@ -121,42 +140,27 @@ export const getUserById = async (id) => {
 // Функция для обновления пользователя
 export const updateUser = async (userId, userData) => {
   try {
-    if (typeof userId !== 'number' || isNaN(userId)) {
-      throw new Error('Некорректный ID пользователя');
+    console.log('Обновление пользователя:', userId);
+    
+    // Если передан пароль, хешируем его
+    if (userData.password) {
+      userData.password = await bcrypt.hash(userData.password, 10);
     }
 
-    // Проверяем, что userData не содержит запрещенные поля
-    const allowedFields = ['email', 'name', 'role', 'status', 'password'];
-    const updateData = {};
-    
-    Object.keys(userData).forEach(key => {
-      if (allowedFields.includes(key)) {
-        // Проверяем допустимые значения для role и status
-        if (key === 'role' && !['user', 'admin'].includes(userData[key])) {
-          throw new Error('Недопустимое значение для роли');
-        }
-        if (key === 'status' && !['active', 'inactive'].includes(userData[key])) {
-          throw new Error('Недопустимое значение для статуса');
-        }
-        updateData[key] = userData[key];
-      }
-    });
-
-    console.log('Обновление пользователя:', userId);
     const user = await prisma.user.update({
       where: { id: userId },
-      data: updateData,
+      data: userData,
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        status: true,
         createdAt: true,
         updatedAt: true
       }
     });
-    console.log('Пользователь успешно обновлен');
+    
+    console.log('Пользователь успешно обновлен:', userId);
     return user;
   } catch (error) {
     console.error('Ошибка при обновлении пользователя:', error);
@@ -167,16 +171,11 @@ export const updateUser = async (userId, userData) => {
 // Функция для удаления пользователя
 export const deleteUser = async (userId) => {
   try {
-    const id = parseInt(userId);
-    if (isNaN(id)) {
-      throw new Error('Некорректный ID пользователя');
-    }
-
-    console.log('Удаление пользователя:', id);
+    console.log('Удаление пользователя:', userId);
     await prisma.user.delete({
-      where: { id }
+      where: { id: userId }
     });
-    console.log('Пользователь успешно удален');
+    console.log('Пользователь успешно удален:', userId);
   } catch (error) {
     console.error('Ошибка при удалении пользователя:', error);
     throw error;
@@ -185,10 +184,5 @@ export const deleteUser = async (userId) => {
 
 // Функция для сравнения паролей
 export const comparePassword = async (candidatePassword, userPassword) => {
-  try {
-    return await bcrypt.compare(candidatePassword, userPassword);
-  } catch (error) {
-    console.error('Ошибка при сравнении паролей:', error);
-    throw error;
-  }
+  return await bcrypt.compare(candidatePassword, userPassword);
 };

@@ -1,5 +1,8 @@
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
+import { AuthenticationError, AuthorizationError } from '../utils/errors.js';
+import { verifyToken } from '../utils/token.utils.js';
+import { jwtConfig } from '../config/jwt.config.js';
 
 export const protect = async (req, res, next) => {
   try {
@@ -12,14 +15,11 @@ export const protect = async (req, res, next) => {
     }
 
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Доступ запрещен. Требуется авторизация'
-      });
+      throw new AuthenticationError('Доступ запрещен. Требуется авторизация');
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = await verifyToken(token);
       const user = await prisma.user.findUnique({
         where: { id: decoded.id },
         select: {
@@ -30,21 +30,21 @@ export const protect = async (req, res, next) => {
       });
 
       if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Пользователь не найден'
-        });
+        throw new AuthenticationError('Пользователь не найден');
       }
 
       req.user = user;
       next();
     } catch (jwtError) {
-      return res.status(401).json({
-        success: false,
-        message: 'Недействительный токен'
-      });
+      throw new AuthenticationError('Недействительный токен');
     }
   } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message
+      });
+    }
     return res.status(500).json({
       success: false,
       message: 'Внутренняя ошибка сервера при аутентификации'
@@ -54,26 +54,33 @@ export const protect = async (req, res, next) => {
 
 export const admin = async (req, res, next) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Требуется авторизация'
-      });
+    if (!req.user || req.user.role !== 'ADMIN') {
+      throw new AuthorizationError('Доступ запрещен. Требуются права администратора');
     }
-
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Доступ запрещен. Требуются права администратора'
-      });
-    }
-
     next();
   } catch (error) {
-    console.error('Admin check error:', error);
-    return res.status(500).json({
+    return res.status(error.statusCode || 403).json({
       success: false,
-      message: 'Внутренняя ошибка сервера при проверке прав'
+      message: error.message
     });
   }
+};
+
+export const autoRefreshToken = async (req, res, next) => {
+  const token = req.cookies.token;
+  if (token) {
+    try {
+      const decoded = jwt.decode(token);
+      const expiresIn = decoded.exp - Date.now() / 1000;
+      
+      // Если токен истекает через менее чем 1 час
+      if (expiresIn < 3600) {
+        const newToken = generateToken(decoded.id);
+        res.cookie('token', newToken, jwtConfig.cookie);
+      }
+    } catch (error) {
+      console.error('Ошибка при обновлении токена:', error);
+    }
+  }
+  next();
 };
